@@ -1,0 +1,8 @@
+﻿certifi==2021.10.8
+mpmath==1.2.1
+numpy==1.22.3
+pip==22.0.4
+scipy==1.8.0
+setuptools==62.1.0
+wheel==0.37.1
+wincertstore==0.2
