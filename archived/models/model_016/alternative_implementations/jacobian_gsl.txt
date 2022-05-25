@@ -1,0 +1,54 @@
+/*******************************************************************************************
+* Jacobian for the model 016 calculated with Wolfram Language 
+* and adapted for its use with the GSL library.
+*******************************************************************************************/
+
+int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *params)
+{
+	(void)(t);
+
+	double n = *(double *)params;
+	double Z = *((double *)params + 1);
+	double tot0 = *((double *)params + 2);
+
+	gsl_matrix_view dfdy_mat = gsl_matrix_view_array(dfdy, 5, 5);
+	gsl_matrix * m = &dfdy_mat.matrix;
+
+	gsl_matrix_set(m, 0, 0, -8158.*n + (589.6851852*tot0*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 0, 1, (589.6851852*tot0*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 0, 2, (589.6851852*tot0*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])) + 1179.37037*sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 0, 3, 0);
+	gsl_matrix_set(m, 0, 4, 0);
+
+	gsl_matrix_set(m, 1, 0, 8158.*n - (354.5432099*tot0*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 1, 1, -283.5820896*n*(0.0000134 + Z) - (354.5432099*tot0*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 1, 2, (-354.5432099*tot0*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])) - 709.0864198*sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 1, 3, 0);
+	gsl_matrix_set(m, 1, 4, 0);
+
+	gsl_matrix_set(m, 2, 0, (-235.7592593*tot0*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 2, 1, 283.5820896*n*(0.0000134 + Z) - (235.7592593*tot0*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 2, 2, (-235.7592593*tot0*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])) - 471.5185185*sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 2, 3, 0);
+	gsl_matrix_set(m, 2, 4, 0);
+
+	gsl_matrix_set(m, 3, 0, (0.6172839506*tot0*(0.0162 - 1.*Z)*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 3, 1, (0.6172839506*tot0*(0.0162 - 1.*Z)*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 3, 2, (0.6172839506*tot0*(0.0162 - 1.*Z)*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])) + 1.234567901*(0.0162 - 1.*Z)*sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 3, 3, 0);
+	gsl_matrix_set(m, 3, 4, 0);
+
+	gsl_matrix_set(m, 4, 0, (0.6172839506*tot0*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 4, 1, (0.6172839506*tot0*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 4, 2, (0.6172839506*tot0*y[2])/sqrt(tot0*(y[1] + y[0] + y[2])) + 1.234567901*sqrt(tot0*(y[1] + y[0] + y[2])));
+	gsl_matrix_set(m, 4, 3, 0);
+	gsl_matrix_set(m, 4, 4, 0);
+
+	dfdt[0] = 0;
+	dfdt[1] = 0;
+	dfdt[2] = 0;
+	dfdt[3] = 0;
+	dfdt[4] = 0;
+
+	return GSL_SUCCESS;
+};
