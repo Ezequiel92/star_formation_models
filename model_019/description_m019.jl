@@ -574,40 +574,6 @@ begin
 	METAL = 0.008
 end;
 
-# ╔═╡ d5b71a07-8a3f-4a15-a70c-b6c125d9ecf5
-# Save the Q values in an HDF5 file with the following structure
-# "IMF"/"Z" -> A Matrix with columns: 
-#   - log(age [yr]) 
-#   - Q_ion [s^-1] 
-#   - Q_diss [s^-1]
-h5open("./data/Q_data.h5", "w") do hdf5_file
-    for (name, imf) in zip(col_names[2:end], Q_imfs)
-		imf_g = create_group(hdf5_file, name)
-		for z in Q_metals
-			data = Matrix{Float64}(
-				ustrip.(@select(@subset(imf, :Zmet .== z), $(Not(:Zmet))))
-			)
-			write(imf_g, string(z), data)
-		end
-	end
-end;
-
-# ╔═╡ 804a0b96-ab09-4a70-b586-1b8ca6a3a5e2
-begin
-	# Save the Q values in text files
-	# Each file is named after the metallicity and is 
-	# stored within the folders ./data/Q_data/`IMF`/
-	for (name, imf) in zip(col_names[2:end], Q_imfs)
-		for z in Q_metals
-			dir = mkpath("./data/Q_data/$name/")
-			data = Matrix{Float64}(
-				ustrip.(@select(@subset(imf, :Zmet .== z), $(Not(:Zmet))))
-			)
-			writedlm(joinpath(dir, string(z)), data)
-		end
-	end
-end;
-
 # ╔═╡ 342c1ad8-338e-44e2-adec-7638fe1767a2
 # Save the η values in text files
 # Each file is named after the metallicity and is 
@@ -1376,6 +1342,28 @@ md"# Functions"
 # ╔═╡ 4607856c-7472-4131-a2ee-29f7150f5cb4
 md"## Integration"
 
+# ╔═╡ 4cfe1c80-c67e-4dd3-825b-d893800d68c0
+md"## Density PDF"
+
+# ╔═╡ d7ba9e0c-5cfa-4176-adff-12cb8e20679b
+md"### Parameters for the density PDF"
+
+# ╔═╡ 82e78dc9-b89e-48d9-9f70-6f3238dfd196
+Base.@kwdef struct Params
+	# Power law slope
+	α::Float64
+	# Dimensionless turbulent forcing parameter
+	b::Float64
+	# Mach number
+	Ms::Float64
+	# (min, max) values of s = log(ρ/ρ₀)
+	deviation::NTuple{2,Float64}
+	# Number of subdivisions of the variable (s = log(ρ/ρ₀) or f = ρ/ρ₀)
+	divisions::Int64
+	# Total initial mean density in Mₒ pc^(-3)
+	ρ₀::Float64        
+end;
+
 # ╔═╡ 7a2987ef-d37e-4c7a-aaa8-8186694bea88
 function mass_fraction(
 	ρ_PDF::Union{Nothing,Function}, 
@@ -1408,28 +1396,6 @@ function mass_fraction(
 
 	return mass_f, points
 	
-end;
-
-# ╔═╡ 4cfe1c80-c67e-4dd3-825b-d893800d68c0
-md"## Density PDF"
-
-# ╔═╡ d7ba9e0c-5cfa-4176-adff-12cb8e20679b
-md"### Parameters for the density PDF"
-
-# ╔═╡ 82e78dc9-b89e-48d9-9f70-6f3238dfd196
-Base.@kwdef struct Params
-	# Power law slope
-	α::Float64
-	# Dimensionless turbulent forcing parameter
-	b::Float64
-	# Mach number
-	Ms::Float64
-	# (min, max) values of s = log(ρ/ρ₀)
-	deviation::NTuple{2,Float64}
-	# Number of subdivisions of the variable (s = log(ρ/ρ₀) or f = ρ/ρ₀)
-	divisions::Int64
-	# Total initial mean density in Mₒ pc^(-3)
-	ρ₀::Float64        
 end;
 
 # ╔═╡ 34c053bf-0b4f-45c4-bb79-7e5e89a26060
@@ -4256,8 +4222,6 @@ version = "3.5.0+0"
 # ╟─448e1dee-4628-4c14-9d6f-dc165b2e826e
 # ╟─c7409abf-dc22-429e-ad4d-e2cbd465d454
 # ╟─aa5e9990-db35-4a91-912e-f839daf6c686
-# ╟─d5b71a07-8a3f-4a15-a70c-b6c125d9ecf5
-# ╟─804a0b96-ab09-4a70-b586-1b8ca6a3a5e2
 # ╟─342c1ad8-338e-44e2-adec-7638fe1767a2
 # ╟─7788b98a-5bec-4b6d-82d9-2c272e2255a7
 # ╟─7af2d4a6-a304-404d-8cbe-eeddb80beba6
