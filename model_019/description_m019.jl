@@ -1226,7 +1226,7 @@ begin
 	 -  "HEG" --> [Heger et al. 2010](https://doi.org/10.1088/0004-637X/724/1/341)
 	 -  "LIM" --> [Limongi et al. 2012](https://doi.org/10.1088/0067-0049/199/2/38)
 	
-	compiled by [Mollá20015](https://doi.org/0.1093/mnras/stv1102), which are summarized in the following table, where
+	compiled by [Mollá20015](https://doi.org/10.1093/mnras/stv1102), which are summarized in the following table, where
 	  - `model`: Stellar yield model
 	  - `s_Z`: Metallicity of the stellar population modeled by the IMF
 	  - `s_m`: Stellar mass
