@@ -1,16 +1,13 @@
-int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *params)
+int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *ode_params)
 { 
   (void)(t);
 	
-  struct Parameters *parameters = (struct Parameters *)params;
+  struct ODEParameters parameters = *(struct ODEParameters *)ode_params;
+  double rho0                     = parameters.rho0;
+  double g0                       = parameters.g0;
 
-  double rho0                    = parameters->rho0;
-  double g0                      = parameters->g0;
-  struct InterpFunc *interp_ion  = parameters->interp_ion;
-  struct InterpFunc *interp_diss = parameters->interp_diss;
-
-  double eta_ion  = eval_interp(interp_ion, y[3]);
-  double eta_diss = eval_interp(interp_diss, y[3]);
+  double eta_ion  = eval_interp(parameters.interp_ion, y[3]);
+  double eta_diss = eval_interp(parameters.interp_ion, y[3]);
 
   gsl_matrix_view dfdy_mat = gsl_matrix_view_array(dfdy, 5, 5);
   gsl_matrix *m            = &dfdy_mat.matrix;

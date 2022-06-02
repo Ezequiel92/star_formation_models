@@ -2,7 +2,7 @@
 #define EZ_SFR_H
 
 /* Initial mass function in use */
-#define IMF_PATH "./ez_sfr/eta_data/Salpeter1955B/*"
+#define IMF_PATH "./eta_data/Salpeter1955B/*"
 
 /* Error type constants */
 #define GLOB_ERROR 0
@@ -19,14 +19,26 @@
  * Zsn and Rf were computed using the IMF from Salpeter et al. (1955)
  * in the mass range 0.1 M⊙ to 40 M⊙, as in Springel et al. (2003)
  */
-#define Zsn 0.12
-#define Rf 0.07
+#define Zsn 0.1157
+#define Rf 0.0657
 
 /* ODE integration constants */
-#define ABS_TOL 1e-6  /* Absolute tolerance */
-#define REL_TOL 1e-6 /* Relative tolerance */
+#define ABS_TOL 1.0e-8 /* Absolute tolerance */
+#define REL_TOL 0.0    /* Relative tolerance */
 
-/* Density PDF from Burkhart (2018) https://doi.org/10.3847/1538-4357/aad002 */
+/* T [internal_units] * T_GYR = T [Gyr] */
+#define T_GYR (All.UnitTime_in_s / All.HubbleParam / (SEC_PER_YEAR * 1e9))
+/* RHO [internal_units] * RHO_CGS = RHO [g cm^(-3)] */
+#define RHO_CGS (All.UnitDensity_in_cgs * All.HubbleParam * All.HubbleParam * All.cf_a3inv)
+/* RHO [internal_units] * RHO_COSMO = RHO [Mₒ pc^(-3)] */
+#define RHO_COSMO (RHO_CGS * PARSEC * PARSEC * PARSEC / SOLAR_MASS)
+/* M [internal_units] * M_COSMO = M [Mₒ] */
+#define M_COSMO (All.UnitMass_in_g / SOLAR_MASS)
+
+/* 
+ * Density PDF from Burkhart (2018) https://doi.org/10.3847/1538-4357/aad002 
+ * Using 10 divisions in the range (-4, 6).
+ */
 #define DIVISIONS 10
 static const double rho_pdf[] = {
     0.12926709133405279, 0.19481409345869244,  0.21767875604365272,  0.18033768769448671,   0.11076747745448377,
@@ -68,9 +80,9 @@ struct InterpFunc
 // void check_error(const int err_type, const int err_code);
 // double eval_interp(struct InterpFunc *interp, const double x);
 // void get_eta(glob_t globbuf, const double age, const int ion, struct InterpFunc *interp_func);
-// int sf_ode(double t, const double y[], double f[], void *params);
-// int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *params);
-// void fractions(const double int_time, struct ODEParameters *params, double y[]);
+// int sf_ode(double t, const double y[], double f[], void *ode_params);
+// int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *ode_params);
+// void fractions(const double int_time, struct ODEParameters *ode_params, double y[]);
 // double stellar_fraction(const int index, const double dt);
 // void get_gas_fractions(const int index, double *fi, double *fa, double *fm);
 
