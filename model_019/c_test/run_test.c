@@ -211,37 +211,6 @@ int main(void)
 
     /***********************************************************************************************
      *
-     * Test of the function fractions()
-     *
-     **********************************************************************************************/
-
-    printf("Test of the function fractions():\n\n");
-
-    double y[5];
-    y[0] = SphP[0].fHII; /* Ionized fraction */
-    y[1] = SphP[0].fHI;  /* Atomic fraction */
-    y[2] = SphP[0].fmol; /* Molecular fraction */
-    y[3] = SphP[0].fZ;   /* Metal fraction */
-    y[4] = SphP[0].fstar;
-
-    get_eta(globbuf, 1.0, 0, &interp_ion);
-    get_eta(globbuf, 1.0, 1, &interp_diss);
-
-    fractions(1.0, &parameters, y);
-
-    gsl_interp_accel_free(interp_ion.acc);
-    gsl_spline_free(interp_ion.interp);
-    gsl_interp_accel_free(interp_diss.acc);
-    gsl_spline_free(interp_diss.interp);
-
-    printf("y[0] = %g -- Should be %g\n", y[0], 0.00401337);
-    printf("y[1] = %g -- Should be %g\n", y[1], 0.995088);
-    printf("y[2] = %g -- Should be %g\n", y[2], 0.000259079);
-    printf("y[3] = %g -- Should be %g\n", y[3], 0.000105133);
-    printf("y[4] = %g -- Should be %g\n\n", y[4], 0.000639846);
-
-    /***********************************************************************************************
-     *
      * Test of the function stellar_fraction()
      *
      **********************************************************************************************/

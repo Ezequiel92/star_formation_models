@@ -18,7 +18,7 @@
  *              <https://www.gnu.org/licenses/>.
  *
  * \file        src/ez_sfr/ez_sfr.c
- * \date        03/2022
+ * \date        06/2022
  * \brief       Compute the star formation rate for a given gas cell.
  * \details     This file contains the routines to compute the star formation rate, according to our
  *              star formation model. It evolves a set of ODEs, that model the mass exchange between
@@ -38,11 +38,11 @@
  * - DD.MM.YYYY Description
  */
 
-#include "ez_sfr.h"
+#include "./ez_sfr.h"
 
 // #ifdef EZ_SFR
 
-/*! \brief This function reads a text file into memory as a matrix.
+/*! \brief This function loads a text file into memory as a C matrix.
  *
  *  Read a text file with space separated values, and stores the numerical
  *  data as doubles in a matrix. Each line in the file must be at most 1024
@@ -141,7 +141,7 @@ double **read_ftable(const char *filename, size_t *rows, size_t *cols)
 
 /*! \brief Prints a human readable explanation of some error codes.
  *
- *  Knows about errors from GSL and GLOB.
+ *  Knows about errors in GSL and GLOB.
  *
  *  \param[in] err_type Number that indicates the library from which the error originates.
  *  \param[in] err_code Error code.
@@ -200,31 +200,15 @@ void check_error(const int err_type, const int err_code)
               break;
           }
         break;
-      case GSL_INT_ERROR:
+      case GSL_INTERP_ERROR:
         switch(err_code)
           {
-            case GSL_EMAXITER:
-              printf("GSL_EMAXITER\n");
-              printf("The maximum number of subdivisions was exceeded\n");
-              break;
-            case GSL_EROUND:
-              printf("GSL_EROUND\n");
-              printf("Cannot reach tolerance because of roundoff error\n");
-              break;
-            case GSL_ESING:
-              printf("GSL_ESING\n");
-              printf("A non-integrable singularity or other bad integrand behavior was found in the integration interval\n");
-              break;
-            case GSL_EDIVERGE:
-              printf("GSL_EDIVERGE\n");
-              printf("The integral is divergent, or too slowly convergent to be integrated numerically\n");
-              break;
             case GSL_EDOM:
               printf("GSL_EDOM\n");
-              printf("Error in the values of the input arguments\n");
+              printf("The input argument is outside the interpolation range\n");
               break;
             default:
-              printf("Unknown GSL integration error\n");
+              printf("Unknown GSL interpolation error\n");
               break;
           }
         break;
@@ -249,26 +233,39 @@ void check_error(const int err_type, const int err_code)
  */
 double eval_interp(struct InterpFunc *interp, const double x)
 {
+  double y = 0;
+
   if(isnan(interp->x_min) || isnan(interp->x_max))
     {
-      fprintf(stdout, "x_min and/or x_max where not stored correctly\n");
+      fprintf(stdout, "x_min and/or x_max in the InterpFunc struct where not stored correctly\n");
       fflush(stdout);
       endrun(8888);
     }
   else if(x < interp->x_min)
     {
-      return gsl_spline_eval(interp->interp, interp->x_min, interp->acc);
+      y = gsl_spline_eval(interp->interp, interp->x_min, interp->acc);
     }
   else if(x > interp->x_max)
     {
-      return gsl_spline_eval(interp->interp, interp->x_max, interp->acc);
+      y = gsl_spline_eval(interp->interp, interp->x_max, interp->acc);
     }
-  return gsl_spline_eval(interp->interp, x, interp->acc);
+  else
+    {
+      y = gsl_spline_eval(interp->interp, x, interp->acc);
+    }
+
+  //if(y == GSL_NAN)
+    //{
+      //printf("GSL interpolation error: ");
+      //check_error(GSL_INTERP_ERROR, y);
+    //}
+
+  return y;
 }
 
 /*! \brief Compute an interpolation function for the photodissociation efficiencies.
  *
- *  Construct the interpolation function for the parameter `eta` as a function of the metallicity.
+ *  Compute the interpolation function for the parameter `eta` as a function of the metallicity.
  *  There are two possible `eta`s:
  *  `eta_ion`: ionization efficiency for Hydrogen atoms.
  *  `eta_diss`: photodissociation efficiency for Hydrogen molecules.
@@ -337,9 +334,9 @@ void get_eta(glob_t globbuf, const double age, const int ion, struct InterpFunc 
   interp_func->x_max = metallicities[globbuf.gl_pathc - 1];
 }
 
-/*! \brief Evaluate the systems of equations for our star formation model.
+/*! \brief Evaluate the systems of equations for the star formation model.
  *
- *  Evaluate the five ODEs of our model, using the following variables:
+ *  Evaluate the five ODEs of the model, using the following variables:
  *
  *  Ionized gas fraction:       i(t) / ρ -> y[0]
  *  Atomic gas fraction:        a(t) / ρ -> y[1]
@@ -366,10 +363,10 @@ int sf_ode(double t, const double y[], double f[], void *ode_params)
   struct ODEParameters parameters = *(struct ODEParameters *)ode_params;
   double rho0                     = parameters.rho0; /* Mean total density */
   double g0                       = parameters.g0;   /* Initial gas fraction: (i(0) + a(0) + m(0)) / ρ */
+  double eta_ion                  = eval_interp(parameters.interp_ion, y[3]);
+  double eta_diss                 = eval_interp(parameters.interp_diss, y[3]);
 
   /* Auxiliary equations */
-  double eta_ion         = eval_interp(parameters.interp_ion, y[3]);
-  double eta_diss        = eval_interp(parameters.interp_diss, y[3]);
   double g               = y[0] + y[1] + y[2];
   double tau_S           = (const_1 * g0) / sqrt(g * rho0);
   double tau_R           = const_2 / (y[0] * rho0);
@@ -388,9 +385,9 @@ int sf_ode(double t, const double y[], double f[], void *ode_params)
   return GSL_SUCCESS;
 };
 
-/*! \brief Evaluate the jacobian for our star formation model.
+/*! \brief Evaluate the jacobian of the star formation model.
  *
- *  Evaluate the jacobian matrix of our model, using the following variables:
+ *  Evaluate the jacobian matrix of the model, using the following variables:
  *
  *  Ionized gas fraction:       i(t) / ρ -> y[0]
  *  Atomic gas fraction:        a(t) / ρ -> y[1]
@@ -418,40 +415,90 @@ int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *ode_
   struct ODEParameters parameters = *(struct ODEParameters *)ode_params;
   double rho0                     = parameters.rho0;
   double g0                       = parameters.g0;
-
-  double eta_ion  = eval_interp(parameters.interp_ion, y[3]);
-  double eta_diss = eval_interp(parameters.interp_diss, y[3]);
+  double eta_ion                  = eval_interp(parameters.interp_ion, y[3]);
+  double eta_diss                 = eval_interp(parameters.interp_diss, y[3]);
 
   gsl_matrix_view dfdy_mat = gsl_matrix_view_array(dfdy, 5, 5);
   gsl_matrix *m            = &dfdy_mat.matrix;
 
-  gsl_matrix_set(m, 0, 0, (0.03283531956573588 * rho0 * y[2] + 0.5 * rho0 * eta_ion  * y[2] - 535200.887413877 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 0, 1, ((0.03283531956573588 + 0.5 * eta_ion ) * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 0, 2, (0.06567063913147177 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) + pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) * eta_ion  + 0.03283531956573588 * rho0 * y[2] + 0.5 * rho0 * eta_ion  * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 0, 0,
+                 (0.03283531956573588 * rho0 * y[2] + 0.5 * rho0 * eta_ion * y[2] -
+                  535200.887413877 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0]) /
+                     (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(
+      m, 0, 1, ((0.03283531956573588 + 0.5 * eta_ion) * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(
+      m, 0, 2,
+      (0.06567063913147177 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) + pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) * eta_ion +
+       0.03283531956573588 * rho0 * y[2] + 0.5 * rho0 * eta_ion * y[2]) /
+          (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
   gsl_matrix_set(m, 0, 3, 0);
   gsl_matrix_set(m, 0, 4, 0);
 
-  gsl_matrix_set(m, 1, 0, (-0.5 * rho0 * eta_ion  * y[2] + 0.5 * rho0 * eta_diss * y[2] + 535200.887413877 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0] - 0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] - 9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] * y[3]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 1, 1, (-0.5 * rho0 * eta_ion  * y[2] + 0.5 * rho0 * eta_diss * y[2] - 0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0] - 0.2479695231261206 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] - 0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[2] - 9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0] * y[3] - 18505.188292994077 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] * y[3] - 9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[2] * y[3]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 1, 2, (pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) * eta_diss - 1.0 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) * eta_ion  - 0.5 * rho0 * eta_ion  * y[2] + 0.5 * rho0 * eta_diss * y[2] - 0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] - 9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] * y[3]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 1, 0,
+                 (-0.5 * rho0 * eta_ion * y[2] + 0.5 * rho0 * eta_diss * y[2] +
+                  535200.887413877 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0] -
+                  0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] -
+                  9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] * y[3]) /
+                     (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 1, 1,
+                 (-0.5 * rho0 * eta_ion * y[2] + 0.5 * rho0 * eta_diss * y[2] -
+                  0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0] -
+                  0.2479695231261206 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] -
+                  0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[2] -
+                  9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0] * y[3] -
+                  18505.188292994077 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] * y[3] -
+                  9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[2] * y[3]) /
+                     (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 1, 2,
+                 (pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) * eta_diss - 1.0 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) * eta_ion -
+                  0.5 * rho0 * eta_ion * y[2] + 0.5 * rho0 * eta_diss * y[2] -
+                  0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] -
+                  9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] * y[3]) /
+                     (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
   gsl_matrix_set(m, 1, 3, (-11435.019367644041 * y[0] - 11435.019367644041 * y[1] - 11435.019367644041 * y[2]) * rho0 * y[1]);
   gsl_matrix_set(m, 1, 4, 0);
 
-  gsl_matrix_set(m, 2, 0, (-0.5 * rho0 * y[2] - 0.5 * rho0 * eta_diss * y[2] + 0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] + 9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] * y[3]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 2, 1, (-0.5 * rho0 * y[2] - 0.5 * rho0 * eta_diss * y[2] + 0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0] + 0.2479695231261206 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] + 0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[2] + 9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0] * y[3] + 18505.188292994077 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] * y[3] + 9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[2] * y[3]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 2, 2, (-1.0 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) - 1.0 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) * eta_diss - 0.5 * rho0 * y[2] - 0.5 * rho0 * eta_diss * y[2] + 0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] + 9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] * y[3]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(
+      m, 2, 0,
+      (-0.5 * rho0 * y[2] - 0.5 * rho0 * eta_diss * y[2] + 0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] +
+       9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] * y[3]) /
+          (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(
+      m, 2, 1,
+      (-0.5 * rho0 * y[2] - 0.5 * rho0 * eta_diss * y[2] + 0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0] +
+       0.2479695231261206 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] +
+       0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[2] +
+       9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0] * y[3] +
+       18505.188292994077 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] * y[3] +
+       9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[2] * y[3]) /
+          (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(
+      m, 2, 2,
+      (-1.0 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) - 1.0 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) * eta_diss -
+       0.5 * rho0 * y[2] - 0.5 * rho0 * eta_diss * y[2] + 0.1239847615630603 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] +
+       9252.594146497038 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[1] * y[3]) /
+          (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
   gsl_matrix_set(m, 2, 3, (11435.019367644041 * y[0] + 11435.019367644041 * y[1] + 11435.019367644041 * y[2]) * rho0 * y[1]);
   gsl_matrix_set(m, 2, 4, 0);
 
-  gsl_matrix_set(m, 3, 0, ((0.0037987669804047212 - 0.5 * y[3]) * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 3, 1, ((0.0037987669804047212 - 0.5 * y[3]) * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 3, 2, (0.0075975339608094425 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) - 1.0 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) * y[3] + 0.0037987669804047212 * rho0 * y[2] - 0.5 * rho0 * y[2] * y[3]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 3, 0,
+                 ((0.0037987669804047212 - 0.5 * y[3]) * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 3, 1,
+                 ((0.0037987669804047212 - 0.5 * y[3]) * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(
+      m, 3, 2,
+      (0.0075975339608094425 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) - 1.0 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) * y[3] +
+       0.0037987669804047212 * rho0 * y[2] - 0.5 * rho0 * y[2] * y[3]) /
+          (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
   gsl_matrix_set(m, 3, 3, (-1 * sqrt((y[0] + y[1] + y[2]) * rho0) * y[2]) / (0.8091454722567165 * g0));
   gsl_matrix_set(m, 3, 4, 0);
 
   gsl_matrix_set(m, 4, 0, (0.4671646804342641 * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
   gsl_matrix_set(m, 4, 1, (0.4671646804342641 * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 4, 2, (0.9343293608685282 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) + 0.4671646804342641 * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 4, 2,
+                 (0.9343293608685282 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) + 0.4671646804342641 * rho0 * y[2]) /
+                     (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
   gsl_matrix_set(m, 4, 3, 0);
   gsl_matrix_set(m, 4, 4, 0);
 
@@ -464,41 +511,7 @@ int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *ode_
   return GSL_SUCCESS;
 };
 
-/*! \brief Numerical integration of the ODEs.
- *
- *  Integrate the system of ODEs, to obtain the following fractions:
- *
- *  Ionized gas fraction:       i(t) / ρ -> y[0]
- *  Atomic gas fraction:        a(t) / ρ -> y[1]
- *  Molecular gas fraction:     m(t) / ρ -> y[2]
- *  Metal fraction:             z(t) / ρ -> y[3]
- *  Stellar fraction:           s(t) / ρ -> y[4]
- *
- *  where ρ = i(t) + a(t) + m(t) + s(t).
- *
- *  \param[in] int_time Integration time, in Gyr.
- *  \param[in] params ODE parameters.
- *  \param[out] y Where the final fraction of each phase will be stored.
- *
- *  \return void.
- */
-void fractions(const double int_time, struct ODEParameters *ode_params, double y[])
-{
-  gsl_odeiv2_system sys     = {sf_ode, jacobian, 5, ode_params};
-  gsl_odeiv2_driver *driver = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_msbdf, int_time * 1e-3, ABS_TOL, REL_TOL);
 
-  /* Solve the ODE system using the BDF method */
-  double t0   = 0.0;
-  int gsl_err = gsl_odeiv2_driver_apply(driver, &t0, int_time, y);
-
-  if(gsl_err != GSL_SUCCESS)
-    {
-      printf("GSL ODE solver error: ");
-      check_error(GLS_ODE_ERROR, gsl_err);
-    }
-
-  gsl_odeiv2_driver_free(driver);
-};
 
 /*! \brief Compute the stellar fraction according to our model.
  *
@@ -513,7 +526,7 @@ double stellar_fraction(const int index, const double dt)
 {
   double int_time = dt * T_GYR;
 
-  /* Interpolation to compute eta_ion and eta_diss */
+  /* Compute eta_ion and eta_diss with a interpolation function */
   glob_t globbuf;
   int glob_err = glob(IMF_PATH, GLOB_ERR, NULL, &globbuf);
 
@@ -550,16 +563,24 @@ double stellar_fraction(const int index, const double dt)
   ode_params.g0          = 1.0;
   ode_params.interp_ion  = &interp_ion;
   ode_params.interp_diss = &interp_diss;
+  ode_params.rho0 = 0.0;
 
-  /* Total baryonic density (density = ρ_i(0) + ρ_a(0) + ρ_m(0) + ρ_s(0)) in [Mₒ pc^(-3)] */
+  /* Total baryonic density in [Mₒ pc^(-3)] */
   double density = SphP[index].d.Density * RHO_COSMO;
   double ne = SphP[index].Ne, nh0 = 0, nHeII = 0;
   double ionized_fraction = 0.0, atomic_fraction = 0.0, molecular_fraction = 0.0, metal_fraction = 0.0, star_fraction = 0.0;
   double y[5], u, fac_entr_to_u;
+  double T0 = 0.0;
 
   fac_entr_to_u = pow(SphP[index].d.Density * All.cf_a3inv, GAMMA_MINUS1) / GAMMA_MINUS1;
   //u             = DMAX(All.MinEgySpec, SphP[index].Entropy * fac_entr_to_u);
   //AbundanceRatios(u, SphP[index].d.Density * All.cf_a3inv, &ne, &nh0, &nHeII);
+  
+  /* Solve the ODE system using the BDF method */
+  gsl_odeiv2_system sys     = {sf_ode, jacobian, 5, (void *)&ode_params};
+  gsl_odeiv2_driver *driver = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_msbdf, int_time * 1e-3, ABS_TOL, REL_TOL);
+  int gsl_err;
+  
   for(int i = 0; i < DIVISIONS; ++i)
     {
       y[0]        = 0.3; /* Ionized fraction */
@@ -567,16 +588,26 @@ double stellar_fraction(const int index, const double dt)
       y[2]        = 0.4;     /* Molecular fraction */
       y[3]        = 1e-4;     /* Metal fraction */
       y[4]        = 0.0;     /* Stellar fraction */
-      ode_params.rho0 = density * f_rho[i];
-      fractions(int_time, &ode_params, y);
+	  
+      ode_params.rho0 = density * F_RHO[i];
+      gsl_odeiv2_driver_reset(driver);
 
-      ionized_fraction += y[0] * rho_pdf[i];
-      atomic_fraction += y[1] * rho_pdf[i];
-      molecular_fraction += y[2] * rho_pdf[i];
-      metal_fraction += y[3] * rho_pdf[i];
-      star_fraction += y[4] * rho_pdf[i];
+      gsl_err = gsl_odeiv2_driver_apply(driver, &T0, int_time, y);
+      if(gsl_err != GSL_SUCCESS)
+        {
+          printf("GSL ODE solver error: ");
+          check_error(GLS_ODE_ERROR, gsl_err);
+        }
+	  
+	  ionized_fraction += y[0] * PDF[i];
+      atomic_fraction += y[1] * PDF[i];
+      molecular_fraction += y[2] * PDF[i];
+      metal_fraction += y[3] * PDF[i];
+      star_fraction += y[4] * PDF[i];
+	  T0 = 0.0;
     }
-
+    
+  gsl_odeiv2_driver_free(driver);
   gsl_spline_free(interp_ion.interp);
   gsl_spline_free(interp_diss.interp);
   gsl_interp_accel_free(interp_ion.acc);
@@ -593,4 +624,4 @@ double stellar_fraction(const int index, const double dt)
   return star_fraction;
 }
 
-// #endif /* of EZ_SFR */
+//#endif /* #ifdef EZ_SFR */

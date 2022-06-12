@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.6
+# v0.19.8
 
 using Markdown
 using InteractiveUtils
@@ -1226,7 +1226,7 @@ begin
 	 -  "HEG" --> [Heger et al. 2010](https://doi.org/10.1088/0004-637X/724/1/341)
 	 -  "LIM" --> [Limongi et al. 2012](https://doi.org/10.1088/0067-0049/199/2/38)
 	
-	compiled by [Mollá20015](https://doi.org/10.1093/mnras/stv1102), which are summarized in the following table, where
+	compiled by [Mollá2015](https://doi.org/10.1093/mnras/stv1102), which are summarized in the following table, where
 	  - `model`: Stellar yield model
 	  - `s_Z`: Metallicity of the stellar population modeled by the IMF
 	  - `s_m`: Stellar mass
@@ -1268,7 +1268,7 @@ begin
 		@transform! df begin
            :zf_rem = (
 			   :C12 .+ :O16 .+ :Ne20 .+ :Mg24 .+ :Si28 .+ :S32 
-			   .+ :Ca40 .+ :Fe56 .+ :C13s .+ :N14s
+			   .+ :Ca40 .+ :Fe56 .+ :C13s .+ :N14s .+ (1 .- :m_rem ./ :s_m) .* :s_Z
 		   )
        end
 
@@ -1299,13 +1299,13 @@ end
 
 # ╔═╡ d1e89b59-bc6f-46fd-a7cd-126fad530916
 md"""
-Which the choice $m_\mathrm{low} = 0.08 \, M_\odot$, $m_\mathrm{high} = 100 \, M_\odot$, and $m_\mathrm{low} = 8 \, M_\odot$ we get the following $R$ and $Z_\mathrm{SN}$,
+With the choice $m_\mathrm{low} = 0.08 \, M_\odot$, $m_\mathrm{high} = 100 \, M_\odot$, and $m_\mathrm{ir} = 8 \, M_\odot$ we get the following $R$ and $Z_\mathrm{SN}$,
 """
 
 # ╔═╡ 49d39360-3609-407c-bfee-c46e7485727a
 md"""
-Averaging over stellar metallicity (`s_Z` column), and varying $m_\mathrm{high}$ between $30 \, M_\odot$ and $100 \, M_\odot$, we get the following plots, where the "errorbars" indicate the standard deviation for varying the stellar metallicity.
-We choose for the plots the [Salpeter et al. 1955](https://doi.org/10.1086/145971) IMF and the [Woosley et al. 1995](https://doi.org/10.2172/115557) yield model.
+Averaging over stellar metallicity (`s_Z` column), and varying $m_\mathrm{high}$ between $30 \, M_\odot$ and $100 \, M_\odot$, we get the following plots, where the error bars indicate the standard deviation for varying the stellar metallicity.
+We choose for the plots the [Kroupa2001](https://doi.org/10.1046/j.1365-8711.2001.04022.x) IMF and the [Woosley et al. 1995](https://doi.org/10.2172/115557) yield model.
 """
 
 # ╔═╡ 9666bdc8-cbc0-4757-9bd8-a76477c252eb
@@ -1445,15 +1445,15 @@ begin
 	const DIVISIONS = 10
 	const DEVIATION = [-4, 6]
 	const FUNCTION = pBurkhart2018
-	const PARAMS = Params(2, 0.5, 10.0, (0, 0), 0, 0)
+	const PARAMS = Params(2, 0.5, 10.0, (DEVIATION...,), DIVISIONS, 0)
 
 	step = (DEVIATION[2] - DEVIATION[1]) / DIVISIONS
 	first_s = DEVIATION[1] + (step / 2)
 
 	open("./data/rho_pdf.txt", "w") do file
-		write(file, "#define DIVISIONS 10\n")
-		
-		write(file, "const double rho_pdf[] = {\n")
+		write(file, "#define DIVISIONS $DIVISIONS\n")
+		write(file, "/* Probability density function of the interstellar gas density */\n")
+		write(file, "static const double PDF[] = {\n")
 		for i in 1:DIVISIONS
 			s = first_s + step * (i - 1)
 			int_val = quadgk(
@@ -1466,7 +1466,8 @@ begin
 		end
 		write(file, "};\n")
 
-		write(file, "const double f_rho[] = {\n")
+		write(file, "/* Density factor: rho = rho0 * F_RHO */\n")
+		write(file, "static const double F_RHO[] = {\n")
 		for i in 1:DIVISIONS
 			f = exp(first_s + step * (i - 1))
 			write(file, "\t$f,\n")
@@ -1700,7 +1701,7 @@ end
 # ╔═╡ 61563dc2-ee4c-4a03-9b7d-44184be7240e
 begin
 	MODEL_fix = model_names["Woosley1995"]
-	IMF_fix = imf_funcs["Salpeter1955"][2]
+	IMF_fix = imf_funcs["Kroupa2001"][2]
 	
 	M_Hs = [30, 40, 50, 60, 70, 80, 90, 100]
 	metal_df = @subset(sy_data, :model .== MODEL_fix)
@@ -1884,13 +1885,12 @@ begin
 	head = "int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *ode_params)
 { 
   (void)(t);
-	
+
   struct ODEParameters parameters = *(struct ODEParameters *)ode_params;
   double rho0                     = parameters.rho0;
   double g0                       = parameters.g0;
-
-  double eta_ion  = eval_interp(parameters.interp_ion, y[3]);
-  double eta_diss = eval_interp(parameters.interp_ion, y[3]);
+  double eta_ion                  = eval_interp(parameters.interp_ion, y[3]);
+  double eta_diss                 = eval_interp(parameters.interp_diss, y[3]);
 
   gsl_matrix_view dfdy_mat = gsl_matrix_view_array(dfdy, $NUMEQU, $NUMEQU);
   gsl_matrix *m            = &dfdy_mat.matrix;\n\n"

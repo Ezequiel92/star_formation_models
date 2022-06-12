@@ -1,5 +1,6 @@
 #define DIVISIONS 10
-const double rho_pdf[] = {
+/* Probability density function of the interstellar gas density */
+static const double PDF[] = {
 	0.12926709133405279,
 	0.19481409345869244,
 	0.21767875604365272,
@@ -11,7 +12,8 @@ const double rho_pdf[] = {
 	0.0007886571065396984,
 	0.0001127898050359872,
 };
-const double f_rho[] = {
+/* Density factor: rho = rho0 * F_RHO */
+static const double F_RHO[] = {
 	0.0301973834223185,
 	0.0820849986238988,
 	0.22313016014842982,
