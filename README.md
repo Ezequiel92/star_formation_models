@@ -22,7 +22,7 @@ The goal of the models is to improve the realism of the star formation rate (SFR
   - Each one of those scripts outputs a `.dat` file with the evolution of the variables after integrating the system for 1 Gyr. These files are saved in `archived/models/model_XXX/alternative_implementations/plots`, where the Mathematica notebook `plots.nb` will plot all the data together to compare the implementations. The goal is to test that all the implementations give the same results.
   - The notebooks and scripts in `archived/analysis` were use to study and understand the old models.
 
-- The current model in use is described by `model/model_019/description_m019.jl`, which can be view online with [![Binder](https://mybinder.org/badge_logo.svg)](https://binder.plutojl.org/v0.19.5/open?url=https%253A%252F%252Fgithub.com%252Fezequiel92%252Fstar_formation_models%252Fblob%252Fmain%252Fmodel_019%252Fdescription_m019.jl%253Fraw%253Dtrue)
+- The main model is described in `model/model_019/description_m019.jl`, which can be view online with [![Binder](https://mybinder.org/badge_logo.svg)](https://binder.plutojl.org/v0.19.8/open?url=https%253A%252F%252Fgithub.com%252Fezequiel92%252Fstar_formation_models%252Fblob%252Fmain%252Fmodel_019%252Fdescription_m019.jl%253Fraw%253Dtrue)
 - The dependencies are given by the `Project.toml`, and `requirements.txt` files.
 
 ## 🧮 Solvers
