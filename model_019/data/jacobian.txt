@@ -11,9 +11,9 @@ int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *ode_
   gsl_matrix_view dfdy_mat = gsl_matrix_view_array(dfdy, 5, 5);
   gsl_matrix *m            = &dfdy_mat.matrix;
 
-  gsl_matrix_set(m, 0, 0, (0.03283531956573588 * rho0 * y[2] + 0.5 * rho0 * eta_ion  * y[2] - 535200.887413877 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 0, 1, ((0.03283531956573588 + 0.5 * eta_ion ) * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 0, 2, (0.06567063913147177 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) + pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) * eta_ion  + 0.03283531956573588 * rho0 * y[2] + 0.5 * rho0 * eta_ion  * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 0, 0, (0.08223460855643472 * rho0 * y[2] + 0.5 * rho0 * eta_ion  * y[2] - 535200.887413877 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 0, 1, ((0.08223460855643472 + 0.5 * eta_ion ) * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 0, 2, (0.16446921711286944 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) + pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) * eta_ion  + 0.08223460855643472 * rho0 * y[2] + 0.5 * rho0 * eta_ion  * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
   gsl_matrix_set(m, 0, 3, 0);
   gsl_matrix_set(m, 0, 4, 0);
 
@@ -29,15 +29,15 @@ int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *ode_
   gsl_matrix_set(m, 2, 3, (11435.019367644041 * y[0] + 11435.019367644041 * y[1] + 11435.019367644041 * y[2]) * rho0 * y[1]);
   gsl_matrix_set(m, 2, 4, 0);
 
-  gsl_matrix_set(m, 3, 0, ((0.004185754675286608 - 0.5 * y[3]) * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 3, 1, ((0.004185754675286608 - 0.5 * y[3]) * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 3, 2, (0.008371509350573215 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) - 1.0 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) * y[3] + 0.004185754675286608 * rho0 * y[2] - 0.5 * rho0 * y[2] * y[3]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 3, 0, ((0.013122145451225345 - 0.5 * y[3]) * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 3, 1, ((0.013122145451225345 - 0.5 * y[3]) * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 3, 2, (0.02624429090245069 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) - 1.0 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) * y[3] + 0.013122145451225345 * rho0 * y[2] - 0.5 * rho0 * y[2] * y[3]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
   gsl_matrix_set(m, 3, 3, (-1 * sqrt((y[0] + y[1] + y[2]) * rho0) * y[2]) / (0.8091454722567165 * g0));
   gsl_matrix_set(m, 3, 4, 0);
 
-  gsl_matrix_set(m, 4, 0, (0.4671646804342641 * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 4, 1, (0.4671646804342641 * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
-  gsl_matrix_set(m, 4, 2, (0.9343293608685282 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) + 0.4671646804342641 * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 4, 0, (0.4177653914435653 * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 4, 1, (0.4177653914435653 * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
+  gsl_matrix_set(m, 4, 2, (0.8355307828871306 * pow(sqrt((y[0] + y[1] + y[2]) * rho0), 2) + 0.4177653914435653 * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
   gsl_matrix_set(m, 4, 3, 0);
   gsl_matrix_set(m, 4, 4, 0);
 
@@ -48,4 +48,4 @@ int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *ode_
   dfdt[4] = 0;
 
   return GSL_SUCCESS;
-};
+}
