@@ -4,2013 +4,10 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 982068e0-59bb-11ec-27f5-51126c2ba1df
-using DifferentialEquations, PlutoUI, TikzPictures, Unitful, UnitfulAstro, SpecialFunctions, QuadGK, CairoMakie, LaTeXStrings, DataFrames, DataFramesMeta, DelimitedFiles, Trapz, LsqFit, Interpolations, CSV, HDF5, Symbolics, Statistics
+# ╔═╡ bcf78560-f2c5-11ec-0dc5-23205a5b9b22
+using DifferentialEquations, PlutoUI, TikzPictures, Unitful, UnitfulAstro, SpecialFunctions, QuadGK, CairoMakie, LaTeXStrings, DataFrames, DataFramesMeta, DelimitedFiles, Trapz, LsqFit, Interpolations, CSV, HDF5, Symbolics, Statistics, Printf
 
-# ╔═╡ 08df960b-fd82-43ba-a9dc-bf5e83af587e
-TableOfContents(title="🌌 Model 019", depth=4)
-
-# ╔═╡ 3b1726c6-60c2-45be-932d-efa8d2ef23e0
-Markdown.MD(
-	Markdown.Admonition(
-		"note", 
-		"Names", 
-		[md"Model 019"]
-	)
-)
-
-# ╔═╡ 6173713c-92b0-43ec-8713-1cbf442aa1ce
-md"# Description"
-
-# ╔═╡ a842b24e-8d26-41ab-9de3-91632aede893
-md"""
-
-## Phases and notation
-
-Considering that the interstellar medium (ISM) in a galaxy is not homogeneous, we will model it as a multi-phase structure. For that purpose, we consider an ionized phase with a temperature of $\sim \! 10^4 \, \mathrm{K}$; an atomic component whose temperature is $\sim \! 100 \, \mathrm{K}$; and a molecular phase with a temperature of $\sim \! 10 \, \mathrm{K}$. The other two phases considered are the stars and all other elements present in the system (metals).
-Metals interact only with the stars and do not contribute to mass balance. 
-
-For every reaction, we will take into account only the dominant channel as a first approximation. So, even though the gas contains Hydrogen and Helium, only Hydrogen reactions are incorporated into the model.
-
-The phases interchange mass with each other during the evolution of the SPH particle under study. The processes involved are the photoionization of atoms; the recombination of electrons with ions; the conversion of atomic hydrogen into molecular hydrogen; and the destruction of the latter owing to the photodissociation caused by ultraviolet (UV) light from the young stellar population. In addition, we consider the formation by supernovas of metals and ionized gas, and the influence of molecular and atomic gas on the star formation rate.
-
-We characterized the mass of the phases by their density fraction, namely
-
-*  Ionized gas $\rightarrow \ i_f(t) ≔ \rho_i / \rho \, ,$
-*  Atomic gas $\rightarrow \ a_f(t) ≔ \rho_a / \rho \, ,$
-*  Molecular gas $\rightarrow \ m_f(t) ≔ \rho_m / \rho \, ,$
-*  Stars $\rightarrow \ s_f(t) ≔ \rho_s / \rho \, ,$
-*  Metals $\rightarrow \ z_f(t) ≔ \rho_z / \rho \, ,$
-
-where $\rho_i$, $\rho_a$, $\rho_m$, $\rho_s$ and $\rho_z$ are the volume densities of each phase and
-
-$\begin{align}
-	\rho_g(t) &= \rho_i(t) + \rho_a(t) + \rho_m(t) \, , \\
-	g_f(t) &= \rho_g(t) / \rho \, , \\
-    \rho(t) &= \rho_g(t) + \rho_s(t) \, ,
-\end{align}$
-
-are the gas density, the gas density fraction, and the total density, of the SPH particle in consideration.
-
-Notice that $z_f$ is not the metallicity as is commonly defined in the literature, where in general $z = \rho_z / \rho_g$. But, given that the stellar fraction (in the short times that are relevant for us) will always be very small, the difference is negligible.
-"""
-
-# ╔═╡ 64787011-b5b8-42be-b6e4-37ebc5138b3e
-md"## Relations between the phases"
-
-# ╔═╡ 76fe97bd-36c8-40d2-9b5a-0ea5059bd7c7
-md"""
-The following diagram shows the relation between the different phases,
-"""
-
-# ╔═╡ 14c7f574-0623-4254-b8f7-97984d32351c
-TikzPicture(
-	L"""
-		\node[box, white] (stars) {Stars};
-		\node[box, white, text width=2em, above=2cm of stars] (atom) {H};
-		\node[box, white, text width=2em, right=2cm of atom] (molecule) {\ch{H2}};
-		\node[box, white, text width=2em, left=2cm of atom] (ion) {\ch{H+}};
-		\node[box, white, below=1cm of stars] (metals) {Metals};
-		\draw[line, white, ->]
-		(ion) edge [bend left, "\textcolor{red}{recombination}"] (atom)
-		(atom) edge [bend left, "\textcolor{blue}{condensation}"] (molecule)
-		(molecule) edge [bend left,"\textcolor{new_green}{dissociation}"] (atom)
-		(atom) edge [bend left,"\textcolor{violet}{ionization}"] (ion)
-		(stars) edge [bend left, "\textcolor{cyan}{supernova}"] (ion)
-		(molecule) edge [bend left, "\textcolor{yellow}{star formation}"] (stars)
-		(stars.west) edge [bend right] node [midway, left] {\textcolor{pink}{\small{supernova}}} (metals.west)
-		(metals.east) to [bend right] node [midway, right] {\textcolor{orange}{\small{star formation}}} (stars.east);
-	""", 
-	width="55em",
-	preamble = """
-		\\usepackage{chemformula}
-		\\definecolor{new_green}{HTML}{00AC06}
-		\\definecolor{yellow}{HTML}{B59E15}
-		\\definecolor{violet}{HTML}{7F13EC}
-		\\definecolor{cyan}{HTML}{0BC3DF}
-		\\definecolor{pink}{HTML}{FF0B8C}
-		\\definecolor{orange}{HTML}{F39C12}
-		\\usetikzlibrary{shapes.misc, arrows, positioning, quotes, fit}
-		\\tikzset{
-    		>=stealth',
-    		box/.style={
-        		rectangle,
-        		rounded corners,
-        		draw=black, 
-        		very thick,
-        		text width=4em,
-        		minimum height=2em,
-        		text centered,
-    		},
-			line/.style = {
-				thick,
-			},
-			every edge quotes/.append style = {
-				font=\\small, 
-				align=center, 
-				auto,
-			},
-			myrect/.style={
-				rectangle,
-				draw,
-				inner sep=0pt,
-				fit=#1,
-				thick, 
-				rounded corners,
-			},
-		}
-	""",
-)
-
-# ╔═╡ bc9ab101-7cc3-4baa-b83d-ce546f6b576d
-md"## Equations"
-
-# ╔═╡ 047bbd39-9cf9-4bd7-b38e-16aa505b0b08
-md"""
-Given the previous interaction diagram we have a system of five first-order ODEs:
-"""
-
-# ╔═╡ 2fe0dc4c-da44-4fc8-bef8-1fa615a0fe4a
-TikzPicture(
-	L"""
-	\node[white] {
-  	${\boldmath\begin{aligned}
-		\dv{}{t}i_f(t) &= - \textcolor{red}{\frac{i_f(t)}{\tau_R(t)}} + \textcolor{violet}{\eta_\text{ion}\,\psi(t)} + \textcolor{cyan}{R\,\psi(t)} \, , \\
-	\dv{}{t}a_f(t) &= - \textcolor{blue}{\frac{a_f(t)}{\tau_C(t)}} + \textcolor{red}{\frac{i_f(t)}{\tau_R(t)}} + \textcolor{new_green}{\eta_\text{diss}\,\psi(t)} - \textcolor{violet}{\eta_\text{ion}\,\psi(t)} \, , \\
-	\dv{}{t}m_f(t) &= \textcolor{blue}{\frac{a_f(t)}{\tau_C(t)}} - \textcolor{new_green}{\eta_\text{diss}\,\psi(t)} - \textcolor{yellow}{\psi(t)} \, , \\
-	\dv{}{t}s_f(t) &= \textcolor{yellow}{\psi(t)} - \textcolor{cyan}{R\,\psi(t)} \, , \\
-	\dv{}{t}z_f(t) &= \textcolor{pink}{Z_{SN}\,R\,\psi(t)} - \textcolor{orange}{z_f\,\psi(t)} \, ,
-	\end{aligned}}$};
-	""", 
-	width="35em",
-	preamble = """
-		\\usepackage{chemformula}
-		\\usepackage{physics}
-		\\setlength{\\jot}{10pt}
-		\\definecolor{new_green}{HTML}{00AC06}
-		\\definecolor{yellow}{HTML}{B59E15}
-		\\definecolor{violet}{HTML}{7F13EC}
-		\\definecolor{cyan}{HTML}{0BC3DF}
-		\\definecolor{pink}{HTML}{FF0B8C}
-		\\definecolor{orange}{HTML}{F39C12}
-	""",
-)
-
-# ╔═╡ eaf272c7-4162-4a9a-92e3-9835c6158394
-md"""
-where
-
-*  $\tau_R$ is the time scale of atomic gas formation from ionized gas, generally called recombination time.
-
-*  $\tau_C$ is the time scale of molecular gas formation from atomic gas, generally called condensation (or cloud formation) time.
-
-*  $\psi(t)$ is the star formation rate (SFR).
-
-*  $\eta_\text{ion}$ is the rate of atomic gas ionization by stars, per unit of created stellar mass.
-
-*  $\eta_\text{diss}$ is the rate of molecular gas dissociation by stars, per unit of created stellar mass.
-
-*  $R$ is the mass of ionized gas produced per unit of created stellar mass. The model assumes instantaneous death for stars with more than eight solar masses.
-
-*  $Z_{SN}$ is the mass of metals produced per unit of ionized gas created during the stellar life cycle. Then, $Z_{SN}\,R$ would be the mass of metals produced per unit of created stellar mass.
-
-From the previous equations we explicitly see mass conservation for $i_f$, $a_f$, $m_f$ and $s_f$,
-
-$\begin{equation}
-    \sum_j \frac{\mathrm{d}}{\mathrm{d}t}j(t) = 0 \, , \qquad j = i_f, a_f, m_f, s_f \, .
-\end{equation}$
-"""
-
-# ╔═╡ ac553b12-4857-4cc1-8ea2-fe9e8863b429
-md"""
-
-## Star formation rate
-
-For the star formation rate we take into account the strong correlation between molecular Hydrogen and star formation ([Bigiel2008](https://doi.org/10.1088/0004-6256/136/6/2846), [Bigiel2010](https://doi.org/10.1088/0004-6256/140/5/1194), [Wong2002](https://doi.org/10.1086/339287), [Robertson2008](https://doi.org/10.1086/587796), [Halle2013](https://doi.org/10.1051/0004-6361/201220952), [Thompson2013](https://doi.org/10.1088/0004-637x/780/2/145)). In particular we will follow [Millán-Irigoyen2020](https://doi.org/10.1093/mnras/staa635) with
-
-$\begin{equation}
-	\psi = \frac{\alpha \, a_f + \beta \, m_f}{\tau_S}
-\end{equation}$
-where $\alpha$ y $\beta$ are dimensionless free parameters.
-
-With the choice $\alpha = 0$ y $\beta = 1$ we get
-
-$\begin{equation}
-	\psi = \frac{m_f}{\tau_S}
-\end{equation}$
-
-where $\tau_S$ is the characteristic timescale for star formation.
-"""
-
-# ╔═╡ dc6fd12b-c821-4e20-a896-25c8aab9df94
-md"## Time parameters"
-
-# ╔═╡ 1d27ec35-65ca-4c94-9e8d-54d1c11e759f
-md"""
-
-### Star formation time
-
-Following [Krumholz2019](https://doi.org/10.1146/annurev-astro-091918-104430), we define $\tau_S$ as the characteristic timescale for star formation; i.e., all the gas which can be converted to stars has done so in a timescale $\tau_S$. In particular, we have
-
-$\begin{equation}
-    \tau_S = \frac{\epsilon_\star}{\epsilon_\text{ff}}\,t_\text{ff} \, ,
-\end{equation}$
-where $\epsilon_\star$ is the fraction of total gas mass which will be converted to stars, $t_\text{ff}$ is the free-fall time, and $\epsilon_\text{ff} = 0.01$ ([Krumholz2019](https://doi.org/10.1146/annurev-astro-091918-104430)) is the fraction of a cloud's mass that is transformed into stars per cloud free-fall time (also known as star-formation efficiency). 
-
-We have that $t_\text{ff}$ and $\epsilon_\star$ can be written as
-
-$\begin{align}
-    t_\text{ff} &= \sqrt{\frac{3\pi}{32 \, G\, \rho_g}} \, , \\
-    \epsilon_\star &= s_f(t \rightarrow \infty) = \left. \frac{\rho_s}{\rho} \right\rvert_{t \rightarrow \infty} \, .
-\end{align}$
-
-Given that at the beginning of the simulation we don't know $s_f(t \rightarrow \infty)$, we can parametrize it with
-
-$\begin{equation}
-    \epsilon_\star = \kappa\,g_f(t_0) \, ,
-\end{equation}$
-where $\kappa$ is a new dimensionless free parameter that characterizes how much of the gas will be converted to stars, given enough time.
-
-So, we finally have 
-
-$\begin{equation}
-    \tau_S = \frac{C_1 \, g_f(t_0)}{\sqrt{\rho_g}} = \frac{C_1 \, g_f(t_0)}{\sqrt{g_f \, \rho(t_0)}} \, ,
-\end{equation}$
-where we used that $\rho(t) = \rho(t_0)$ thanks to mass conservation, and
-
-$\begin{equation}
-    C_1 = \frac{\kappa}{\epsilon_\text{ff}} \, \sqrt{\frac{3\pi}{32 \, G}} \, .
-\end{equation}$
-
-We will use $\kappa = 1$, as the simplest choice for the free parameter.
-"""
-
-# ╔═╡ 68732d91-805a-4663-9166-f8483213a8d2
-begin
-	ϵff = 0.01
-	κ = 1.0
-end;
-
-# ╔═╡ 27281e53-e519-4ad0-af5d-59fb0e208534
-C₁ = (κ / ϵff) * sqrt(3π / 32u"G") |> UnitfulAstro.Gyr * UnitfulAstro.Msun^(1/2) * UnitfulAstro.pc^(-3/2)
-
-# ╔═╡ 6503fb74-c34f-40db-afb4-7affd4ceef88
-md"""
-
-### Recombination time
-
-From dimensional analysis, we have that the characteristic time for the recombination reaction
-
-$\begin{equation}
-    e^- + p^+ \longleftrightarrow H + \gamma \, ,
-\end{equation}$
-
-is given by
-
-$\begin{equation}
-    \tau_R = \frac{1}{n_e \langle\sigma \, v\rangle} \, , 
-\end{equation}$
-
-where $n_e$ is the number fraction of electrons and $\langle\sigma\,v\rangle$ is the recombination rate.
-
-From [Osterbrock2006](http://www.worldcat.org/oclc/60611705) (pg. 22) we have that
-
-$\begin{equation}
-    \langle\sigma\,v\rangle \approx \alpha_B(10^4 \, K) = 2.59 \times 10^{-13} \, \mathrm{cm}^3 \, \mathrm{s}^{-1} \, ,
-\end{equation}$
-
-where we used the case B recombination, which considers all but one transition channel. A transition directly to the ground state does not result in net recombination, because the emitted photon has enough energy to ionize another atom. Thus it is a better approximation to exclude that case.
-
-The electron density is $n_e = n_i$, where $n_i$ in the number density of ionized Hydrogen atoms, so $n_e$ is essentially the same quantity as $\rho_i(t)$, where the only difference is a conversion factor for the different units, $n_e = n_i = \rho_i(t) / m_p$, where $m_p$ is the proton mass.
-
-We have then
-
-$\begin{equation}
-    \tau_R = \frac{C_2}{\rho_i} = \frac{C_2}{i_f \, \rho} \, , 
-\end{equation}$
-where
-
-$\begin{equation}
-	C_2 = \frac{m_p}{\alpha_B(10^4 \, K)} \, .
-\end{equation}$
-"""
-
-# ╔═╡ f6251e55-f88b-4f53-8449-e30b0bf9ae44
-αB = 2.59e-13u"cm^3 * s^-1";
-
-# ╔═╡ 7099a821-a0f0-4931-b6cf-88581e9cff9e
-C₂ = u"mp" / αB |> UnitfulAstro.Gyr * UnitfulAstro.Msun * UnitfulAstro.pc^(-3)
-
-# ╔═╡ 4a7eb24b-0874-49a3-9b08-4ffb6a7f0ce7
-md"""
-
-### Condensation time
-
-As with the recombination process, we will only consider Hydrogen as a first approximation. There are several channels for the formation of molecular Hydrogen, but the most efficient processes involve the interaction of $H$ atoms on the surface of dust grains, so as before, we have
-
-$\begin{equation}
-    \tau_C = \frac{1}{2\,n_\mathrm{dust} \, \langle\sigma v\rangle_\mathrm{dust}}  \, , 
-\end{equation}$
-
-where $n_\mathrm{dust}$ is the volume density of dust grains in the ISM, and $\langle\sigma v\rangle_\mathrm{dust}$ is the thermally averaged cross-section for the formation of molecular hydrogen (see [Millán-Irigoyen2020](https://doi.org/10.1093/mnras/staa635) and reference therein).
-
-From [Mollá2017](https://doi.org/10.1093/mnras/stx419) we have that
-
-$\begin{equation}
-    n_\mathrm{dust} \, \langle\sigma v\rangle_\mathrm{dust} \approx \frac{Z + Z_\mathrm{eff}}{Z_\odot} \, n_\mathrm{ISM} \, \langle\sigma v\rangle_\odot \, , 
-\end{equation}$
-
-where $n_\mathrm{ISM}$ denotes the gas density, $Z$ is the metallicity, $Z_\odot = 0.0134$ ([Asplund2009](https://doi.org/10.1146/annurev.astro.46.060407.145222)) is the solar metallicity, $\langle\sigma v\rangle_\odot = 6 \times 10^{-17} \, \mathrm{cm}^3 \, \mathrm{s}^{-1}$ ([Draine1996](http://doi.org/10.1086/177689)) is the rate of molecular hydrogen formation for $T = 100 \, K$, and $Z_\mathrm{eff} \approx 10^{-3} \, Z_\odot$ ([Glover2007](http://dx.doi.org/10.1086/519445)) is an initial value of metallicity needed to kick start the star formation process, given that the initial abundance of metals and dust grains is zero, and stars only form from molecular clouds. This initial value accounts for all other channels of molecular formation. A detailed study of which would have a minimal impact on the results.
-
-Like before we have $n_\mathrm{ISM} = n_i + n_a + 2\,n_m = \rho_g / m_p$. So, the characteristic time is given by
-
-$\begin{equation}                            \\
-    \tau_C = \frac{C_3}{g_f \, \rho}\,\frac{1}{z_f + Z_\mathrm{eff}} \, ,
-\end{equation}$
-
-where
-
-$\begin{align}
-	g_f &= i_f + a_f + m_f \, , \\
-	C_3 &= \frac{Z_\odot \, m_p}{2 \, \langle\sigma v\rangle_\odot} \, .
-\end{align}$
-
-Notice that we did the following approximation
-
-$\begin{align}
-Z = \frac{\rho_z}{\rho_g} = \frac{z_f \, \rho}{\rho_g} \approx z_f \, .
-\end{align}$
-"""
-
-# ╔═╡ f2a6676f-457a-476a-9ce7-c336aa9bf47f
-begin
-	σv = 6e-17u"cm^3 * s^-1"
-	Zsun = 0.0134
-end;
-
-# ╔═╡ 040e1a8c-97ab-4751-a556-ed936fe58c35
-C₃ = Zsun * u"mp" / (2 * σv) |> UnitfulAstro.Gyr * UnitfulAstro.Msun * UnitfulAstro.pc^(-3)
-
-# ╔═╡ 3767c7f9-a0bc-467a-a20a-5e5a266111c7
-md"""
-
-## Mass quotients
-
-We define two mass quotients, ionized mass rate per unit of created stellar mass, 
-
-$\begin{equation}
-    \eta_\text{ion} = \frac{\dot{M}_\mathrm{ion}}{\psi}  \, , 
-\end{equation}$
-
-and disassociated mass rate per unit of created stellar mass, 
-
-$\begin{equation}
-    \eta_\text{diss} = \frac{\dot{M}_\mathrm{diss}}{\psi}  \, , 
-\end{equation}$
-
-The mass rates $\dot{M}_\mathrm{diss}$ and $\dot{M}_\mathrm{ion}$ can be computed from the photon production rate, for the corresponding energy ranges,
-
-$\begin{align}
-    \dot{M}_\mathrm{ion} &= \dot{N}_\mathrm{ion} \, f_\mathrm{ion} \, , \\
-    \dot{M}_\mathrm{diss} &= \dot{N}_\mathrm{diss} \, f_\mathrm{diss} \, ,
-\end{align}$
-
-where $\dot{N}_\mathrm{ion}$ is the number of ionizing photons produced per unit time (between $0$ and $912\,Å$), $\dot{N}_\mathrm{diss}$ the number of photodissociating photons produced per unit time (in the Lyman–Werner band, $912\,Å$ to $1107\,Å$), and $f_\mathrm{ion}$ and $f_\mathrm{diss}$ are the factors that convert units (proton mass into solar mass) and take into account that the reaction may not be $100\%$ efficient.
-"""
-
-# ╔═╡ 127e1dfa-62d8-4721-adc8-cb24c6e9cdcc
-md"""
-For the ionization reaction, each photon will produce one proton, and we assume $100\%$ efficiency.
-"""
-
-# ╔═╡ 005957d6-6f27-4abc-a872-45cf6a032b9f
-f_ion = ustrip(1.0u"mp" |> u"Msun")
-
-# ╔═╡ 0fcd2ad5-440c-4128-be21-1f8a354074fe
-md"""
-For the molecule dissociation reaction, we have to consider the numerical factor given by [Draine1996](https://doi.org/10.1086/177689), where it is shown that dust grains may absorb up to $\sim \! 60$ percent of the photons capable of dissociating hydrogen molecules, and a large fraction of the remaining photons excite different rotational and vibrational states, reducing their dissociation probability to $\sim \! 15$ percent, so we end up with an efficiency factor of $0.4 \times 0.15 = 0.06$.
-$f_\mathrm{diss}$ has an extra factor of two with respect to $f_\mathrm{ion}$ because each photon contributes with two protons (from the dissociated molecule) to the atomic gas.
-"""
-
-# ╔═╡ f8b02d00-ff30-480e-b5eb-e150e4678c95
-f_diss = 0.4 * 0.15 * 2.0 * ustrip(1.0u"mp" |> u"Msun")
-
-# ╔═╡ 44c88ad8-a8c3-45e3-9a56-be3ce5bf66fa
-md"""
-The number of photons can be computed from $Q(t', Z)$, which is defined as the number of photons produced by a stellar population of one solar mass, of age $t'$ and metallicity $Z$, per unit time. So, we have the relation
-
-$\begin{equation}
-    \dot{N}(t) = \int_0^t \psi(t - t') \, Q(t', Z(t - t')) \mathrm{d}t' \, ,
-\end{equation}$
-
-where $\psi(t - t')$ is the instantaneous SFR at the moment of birth of the stellar population of current age $t'$, and $Z = Z(t - t')$ is defined as the metallicity at that moment. Because most of the contribution to the integral comes from young blue stars that die in the first $10 \ \mathrm{to} \ 100 \, \mathrm{Myr}$, it is possible to approximate
-
-$\begin{align}
-    \psi(t - t') &\approx \psi(t) \, , \\
-	Z(t - t') &\approx Z(t) \, .
-\end{align}$
-
-So we end up with 
-
-$\begin{equation}
-    \eta = f \, \frac{\dot{N}}{\psi} = f \, \int_0^t Q(t', Z) \mathrm{d}t'\, ,
-\end{equation}$
-
-The values of $Q$ can be obtained using
-
-$\begin{equation}
-    Q(t', Z) = \int_{\lambda_1}^{\lambda_2} \frac{L_\lambda(t', Z)}{E_\lambda} \mathrm{d}\lambda \, ,
-\end{equation}$
-
-where $L_\lambda(t', Z)$ is the luminosity per unit of wavelength of a stellar population of one solar mass, of age $t'$ and metallicity $Z$ and $E_\lambda = \lambda / (h \, c)$ is the energy of a photon of wavelength $\lambda$. So integrating 
-
-$\begin{equation}
-    \frac{L_\lambda(t', Z)}{E_\lambda} \mathrm{d}\lambda \, ,
-\end{equation}$
-
-between the wavelength of interest, we get the number of photons produced per unit time for a stellar population of the given characteristics.
-
-The luminosity will not only depend on the age and metallicity of the population but on the IMF (initial mass function) too, so in principle for each IMF, $t'$ and $Z$ we have a function of luminosity versus $\lambda$.
-
-Using the values from PopStar by [Mollá2009](https://doi.org/10.1111/j.1365-2966.2009.15160.x) we compute a table of $Q_\mathrm{ion}$ and $Q_\mathrm{diss}$ for six IMFs ([Salpeter1955](https://doi.org/10.1086/145971) in two mass ranges, $0.85\,\mathrm{M}_\odot$ to $120\,\mathrm{M}_\odot$ and $0.15\,\mathrm{M}_\odot$ to $100\,\mathrm{M}_\odot$, [Kroupa2001](https://doi.org/10.1046/j.1365-8711.2001.04022.x), [Ferrini1990](https://ui.adsabs.harvard.edu/abs/1990A%26A...231..391F) and [Chabrier2003](https://doi.org/10.1086/374879)), six metallicities (0.0001, 0.0004, 0.004, 0.008, 0.02, 0.05) and for ages between $0.1\,\mathrm{Myr}$ and $15\,\mathrm{Gyr}$.
-"""
-
-# ╔═╡ 448e1dee-4628-4c14-9d6f-dc165b2e826e
-begin
-	
-	# Raw luminosity data from 
-	# https://www.fractal-es.com/PopStar/#download (PopStar2009)
-	q_dirs = readdir("./data/luminosity", join = true)
-	
-	# Regex patterns to extract data from filenames: IMF_mlow_mup_zXXXX_tXXXX
-	patterns = [
-		r"(?<=spneb_)(.*?)(?=_z)",  # IMF_mlow_mup 
-		r".+?(?=_)",                # IMF
-		r"(?<=_)(.*?)(?=_)",        # mlow
-		r"[^_]+$",                  # mup
-		r"(?<=z)(.*?)(?=_)",        # metallicity
-		r"(?<=t)(.*)",              # log(age)
-	]
-	
-	# Wavelength range for the photoionization of Hydrogen atoms
-	λ_Qion = (0.0u"Å", 912.0u"Å")
-	# Wavelength range for the photoionization of Hydrogen molecules
-	λ_Qdiss = (912.0u"Å", 1107.0u"Å")
-	
-	q_data_in_files = DataFrame[]
-	
-	for dir in q_dirs
-		
-		files = readdir(dir, join=true)
-		
-		IMF_mlow_mup = getfield.(match.(patterns[1], basename.(files)), :match)
-		IMF = getfield.(match.(patterns[2], IMF_mlow_mup), :match)
-		mlow = getfield.(match.(patterns[3], IMF_mlow_mup), :match)
-		mup = getfield.(match.(patterns[4], IMF_mlow_mup), :match)
-		Zmet = getfield.(match.(patterns[5], basename.(files)), :match)
-		ages = getfield.(match.(patterns[6], basename.(files)), :match)
-		
-		Qion = []
-		Qdiss = []
-		
-		for file in files
-			
-			data = readdlm(file)
-			df = identity.(DataFrame(data, ["λ", "L⋆", "Lneb", "Ltot"]))
-
-			# Wavelength
-			df[!, 1] = df[!, 1] .* u"Å"
-			# Stellar spectral energy distributions per unit wavelength
-			df[!, 2] = df[!, 2] .* 3.82e33u"erg * s^-1 * Å^-1"
-			# Nebular spectral energy distributions per unit wavelength
-			df[!, 3] = df[!, 3] .* 3.82e33u"erg * s^-1 * Å^-1"
-			# Total spectral energy distributions per unit wavelength
-			df[!, 4] = df[!, 4] .* 3.82e33u"erg * s^-1 * Å^-1"
-
-			# Spectral energy distribution integration
-			let
-				λ = @subset(df, λ_Qion[1] .< :λ .< λ_Qion[2])
-				integrand = λ[!, 1] .* λ[!, 2] ./ (1u"h" * 1u"c")
-				push!(Qion, trapz(λ[!, 1], integrand) |> u"s^-1")
-			end
-			let
-				λ = @subset(df, λ_Qdiss[1] .< :λ .< λ_Qdiss[2])
-				integrand = λ[!, 1] .* λ[!, 2] ./ (1u"h" * 1u"c")
-				push!(Qdiss, trapz(λ[!, 1], integrand) |> u"s^-1")
-			end
-			
-		end
-		
-		push!(
-			q_data_in_files, 
-			identity.(DataFrame(
-				"IMF" => uppercase.(IMF),        # Initial mass function
-				"mlow" => parse.(Float64, mlow), # Min. mass of the IMF
-				"mup" => parse.(Float64, mup),   # Max. mass of the IMF
-				"Zmet" => parse.(Float64, "0." .* Zmet),  # Metallicities
-				"log(age)" => parse.(Float64, ages),      # Stellar ages
-				"Q_ion" => Qion, # Number of ionizing photons per unit time
-				"Q_diss" => Qdiss  # Number of dissociating photons per unit time
-			))
-		)
-		
-	end
-	
-	Q_data = sort(vcat(q_data_in_files...), ["IMF", "mlow", "Zmet", "log(age)"])
-	
-end
-
-# ╔═╡ c7409abf-dc22-429e-ad4d-e2cbd465d454
-# Separate the computed Q values by IMF in different variables
-begin
-	Salpeter1955A = @select(
-	    @subset(Q_data, :IMF .== "SAL", :mlow .== 0.85), 
-	    $(Not([:IMF, :mlow, :mup])),
-    )
-	Salpeter1955B = @select(
-	    @subset(Q_data, :IMF .== "SAL", :mlow .== 0.15), 
-	    $(Not([:IMF, :mlow, :mup])),
-    )
-	Ferrini1990 = @select(
-		@subset(Q_data, :IMF .== "FER"), 
-		$(Not([:IMF, :mlow, :mup])),
-	) 
-    Kroupa2001 = @select(
-		@subset(Q_data, :IMF .== "KRO"), 
-		$(Not([:IMF, :mlow, :mup])),
-	) 
-    Chabrier2003 = @select(
-		@subset(Q_data, :IMF .== "CHA"), 
-		$(Not([:IMF, :mlow, :mup])),
-	)  
-    Q_imfs = [
-		Salpeter1955A, 
-		Salpeter1955B,
-		Ferrini1990,
-		Kroupa2001, 
-		Chabrier2003,
-	]
-end;
-
-# ╔═╡ aa5e9990-db35-4a91-912e-f839daf6c686
-begin
-	# Names of the columns for some dataframes
-	col_names = [
-		"Z", 
-		"Kroupa2001", 
-		"Ferrini1990", 
-		"Salpeter1955A", 
-		"Salpeter1955B",
-		"Chabrier2003",
-	]
-
-	# Metallicities we have data for
-    Q_metals = unique(Kroupa2001[!, "Zmet"])
-
-	# Maximum stellar age used to compute ηion and ηdiss: 16 Gyr
-	MAX_AGE = log10(16e9) 
-
-	# Metallicity used to compute ηion and ηdiss: 0.008
-	METAL = 0.008
-end;
-
-# ╔═╡ 342c1ad8-338e-44e2-adec-7638fe1767a2
-# Save the η values in text files
-# Each file is named after the metallicity and is 
-# stored within the folders ./data/eta_data/`IMF`/
-for (name, imf) in zip(col_names[2:end], Q_imfs)
-	for z in Q_metals
-		dir = mkpath("./data/eta_data/$name/")
-			
-		eta_data = Array{Float64}(undef, 0, 3)
-		q_df = @select(@subset(imf, :Zmet .== z), $(Not(:Zmet)))
-
-		for index_age in 5:size(q_df, 1)
-				
-			ages = exp10.(q_df[1:index_age,  "log(age)"]) * u"yr"
-		    QH = q_df[1:index_age, "Q_ion"]
-			QHII = q_df[1:index_age, "Q_diss"]
-				
-			eta_data = vcat(
-				eta_data, 
-				[
-					q_df[index_age,  "log(age)"];;
-					ustrip(Unitful.NoUnits, trapz(ages, QH) * f_ion);;
-					ustrip(Unitful.NoUnits, trapz(ages, QHII) * f_diss)
-				],
-			)
-		end
-			
-		writedlm(joinpath(dir, string(z)), eta_data)
-	end
-end
-
-# ╔═╡ 7788b98a-5bec-4b6d-82d9-2c272e2255a7
-md"""### Ionization efficiency of Hydrogen atoms ($\eta_\mathrm{ion}$)"""
-
-# ╔═╡ 7af2d4a6-a304-404d-8cbe-eeddb80beba6
-md"""
-Now that we have all the $Q_\mathrm{ion}$ values we will integrate them (up to the maximum  stellar age we have data for ~$15 \, \mathrm{Gyr}$) for each IMF and each value of $Z$, resulting in the following table
-"""
-
-# ╔═╡ aeb72f0e-2252-486a-b79b-9d8cc6e5f962
-begin
-    table_ion = Array{Float64}(undef, 6, 0)
-	
-    for imf in Q_imfs
-        sol = Float64[]
-        for met in Q_metals
-			sub_df = @subset(imf, :Zmet .== met, $("log(age)") .< MAX_AGE)
-			ages = exp10.(sub_df[!, "log(age)"]) * u"yr"
-    	    QH = sub_df[!, "Q_ion"]
-    	    append!(sol, uconvert(Unitful.NoUnits, trapz(ages, QH) * f_ion))
-        end
-        global table_ion = hcat(table_ion, sol)
-    end
-	
-    table_ion = hcat(Q_metals, table_ion)
-	eta_ion = DataFrame(table_ion, col_names)
-end
-
-# ╔═╡ e83337bd-8c2d-4a9a-bd8b-7f8201cf67ad
-let
-	f = Figure()
-	ax = Axis(
-		f[1,1], 
-		xlabel = L"Z", 
-		ylabel = L"\eta_\mathrm{ion}",
-		xlabelsize = 30,
-		ylabelsize = 30,
-		xticklabelsize = 20,
-		yticklabelsize = 20,
-		xscale = log10,
-	)
-
-	for col in col_names[2:end]
-		scatterlines!(
-			ax, 
-			Q_metals, eta_ion[!, col], 
-			linewidth = 3, 
-			label = col,
-		)
-	end
-
-	axislegend(position = :rt)
-
-	f
-end
-
-# ╔═╡ b8beaaa6-b018-4ca8-b19d-a918dc761707
-md"""#### Ionization efficiency as a function of the maximum stellar age"""
-
-# ╔═╡ 43eb3af9-86c5-49e9-af0e-3270e3df493e
-md"""
-At fix metallicity (Z = 0.008).
-"""
-
-# ╔═╡ 05d22c2d-f76f-4931-8e21-6d31e9ab178e
-begin
-	AGES = [
-		log10(1e6), log10(2e6), log10(3e6), log10(4e6), log10(5e6), log10(6e6), log10(7e6), log10(8e6), log10(9e6), log10(10e6), log10(100e6), log10(1e9), log10(10e9)
-	]
-    table_z_ion = Array{Float64}(undef, length(AGES), 0)
-	
-    for imf in Q_imfs
-        sol = Float64[]
-        for age in AGES
-			sub_df = @subset(imf, :Zmet .== METAL, $("log(age)") .< age)
-			ages = exp10.(sub_df[!, "log(age)"]) * u"yr"
-    	    QH = sub_df[!, "Q_ion"]
-    	    append!(sol, uconvert(Unitful.NoUnits, trapz(ages, QH) * f_ion))
-        end
-    	global table_z_ion  = hcat(table_z_ion, sol)
-	end
-
-	table_z_ion = hcat(AGES, table_z_ion)
-	eta_z_ion = DataFrame(table_z_ion, ["log(age)", col_names[2:end]...])
-end
-
-# ╔═╡ ea0bada1-4359-4c2b-9dc8-d91b6ebd5686
-let
-	f = Figure()
-	ax = Axis(
-		f[1,1], 
-		xlabel = L"\mathrm{Stellar} \,\, \mathrm{age}", 
-		ylabel = L"\eta_\mathrm{ion}",
-		xlabelsize = 30,
-		ylabelsize = 30,
-		xticklabelsize = 20,
-		yticklabelsize = 20,
-		titlesize = 25,
-		xscale = log10,
-		title = L"Z = 0.008",
-	)
-
-	for col in col_names[2:end]
-		scatterlines!(
-			ax, 
-			AGES, eta_z_ion[!, col], 
-			linewidth = 3, 
-			label = col,
-		)
-	end
-
-	axislegend(position = :rt)
-
-	f
-end
-
-# ╔═╡ 00e1f4f0-6a6a-48dc-81d5-99f356aa3410
-md"""
-At fix IMF (Kroupa et al. 2001).
-"""
-
-# ╔═╡ 0f212d88-6b3a-4f96-8f05-d5b0f9943fe3
-begin
-    table_imf_ion = Array{Float64}(undef, length(AGES), 0)
-	
-    for met in Q_metals
-        sol = Float64[]
-        for age in AGES
-			sub_df = @subset(Q_imfs[1], :Zmet .== met, $("log(age)") .< age)
-			ages = exp10.(sub_df[!, "log(age)"]) * u"yr"
-    	    QH = sub_df[!, "Q_ion"]
-    	    append!(sol, uconvert(Unitful.NoUnits, trapz(ages, QH) * f_ion))
-        end
-    	global table_imf_ion  = hcat(table_imf_ion, sol)
-	end
-
-	table_imf_ion = hcat(AGES, table_imf_ion)
-	eta_imf_ion = DataFrame(table_imf_ion, ["log(age)", string.(Q_metals)...])
-end
-
-# ╔═╡ 3c26c7f7-0d0c-4fe3-a071-ab76c7904659
-let
-	f = Figure()
-	ax = Axis(
-		f[1,1], 
-		xlabel = L"\mathrm{Stellar} \,\, \mathrm{age}", 
-		ylabel = L"\eta_\mathrm{ion}",
-		xlabelsize = 30,
-		ylabelsize = 30,
-		xticklabelsize = 20,
-		yticklabelsize = 20,
-		titlesize = 25,
-		xscale = log10,
-		title = L"Kroupa et al. $2001$"
-	)
-
-	for met in Q_metals
-		scatterlines!(
-			ax, 
-			AGES, eta_imf_ion[!, string(met)], 
-			linewidth = 3, 
-			label = string(met),
-		)
-	end
-
-	axislegend(position = :lt)
-
-	f
-end
-
-# ╔═╡ fa38bb0f-c807-48b2-8bf2-33e457b53435
-md"""### Approximations of $\eta_\mathrm{ion}$"""
-
-# ╔═╡ e879e854-a9c3-4762-9963-dfa8960f2dc5
-md"""#### Fitting"""
-
-# ╔═╡ 66f233f2-76d8-45be-9aa2-831ff7269d96
-md"""
-Given that the result of $\eta_\mathrm{ion}$ for a given IMF is a function of Z, we can fit a quadratic function to the log-log data
-
-$\begin{equation}
-    \log_{10}(\eta) = p_1 \log_{10}(Z)^2 + p_2 \log_{10}(Z) + p_3 \, ,
-\end{equation}$
-where $p_1$, $p_2$ and $p_3$ are the parameters to be fitted.
-"""
-
-# ╔═╡ d7069cdb-9a99-4194-93ea-03b5b82ddc89
-# Fitting model
-begin
-	@. model(x, p) = exp10(p[1] * log10(x)^2 + p[2] * log10(x) + p[3])
-	
-	xdata = Q_metals
-	p0 = [-1.0, -1.0, 1.0]
-end;
-
-# ╔═╡ 4525cc1d-5338-400e-840a-47c069014ec6
-md"""The fitted parameters for each IMF are"""
-
-# ╔═╡ 0e350f3a-534e-4b7b-b473-9f3ebefb399e
-begin
-	ion_coeff = DataFrame("coeff" => ["p₁", "p₂", "p₃"])
-	
-	for (ydata, colname) in zip(eachcol(eta_ion[!, 2:end]), col_names[2:end])
-		fit = curve_fit(model, xdata, ydata, p0)
-		ion_coeff[!, colname] = coef(fit)
-	end
-
-	ion_coeff
-end
-
-# ╔═╡ fd2f6a01-9125-49fb-8615-b2e5deccd107
-let
-	f = Figure()
-	ax = Axis(
-		f[1,1], 
-		xlabel = L"Z", 
-		ylabel = L"\eta_\mathrm{ion}",
-		xlabelsize = 30,
-		ylabelsize = 30,
-		xticklabelsize = 20,
-		yticklabelsize = 20,
-		titlesize = 25,
-		yscale = log10,
-		xscale = log10,
-		title = "Fitting"
-	)
-
-	for (i, col) in enumerate(col_names[2:end])
-		scatter!(
-			ax, 
-			Q_metals, eta_ion[!, col], 
-			linewidth = 3, 
-			label = col,
-		)
-		lines!(
-			ax, 
-			Q_metals,  model(Q_metals, ion_coeff[!, i + 1]), 
-			linewidth = 3,
-			color = :red,
-		)
-	end	
-
-	axislegend(position = :lb)
-
-	f
-end
-
-# ╔═╡ 930fe232-f4ff-4331-9752-4e4ec0e66009
-md"""#### Interpolation"""
-
-# ╔═╡ 386334a4-60bf-47de-bf72-516f042b1407
-md"""Alternatively we can interpolate linearly between the known values, setting a flat constant (equal to the las know value) for metallicities outside the range."""
-
-# ╔═╡ 9b0f3856-bee3-485e-9049-1a082c86e571
-# Interpolation
-itp_ion = Dict(
-	colname => LinearInterpolation(xdata, ydata, extrapolation_bc = Flat()) for 
-	(ydata, colname) in zip(eachcol(eta_ion[!, 2:end]), col_names[2:end])
-);
-
-# ╔═╡ d5ba04de-e2e8-44af-9b60-6a47b782248e
-let
-	f = Figure()
-	ax = Axis(
-		f[1,1], 
-		xlabel = L"Z", 
-		ylabel = L"\eta_\mathrm{ion}",
-		xlabelsize = 30,
-		ylabelsize = 30,
-		xticklabelsize = 20,
-		yticklabelsize = 20,
-		titlesize = 25,
-		yscale = log10,
-		xscale = log10,
-		title = "Interpolation"
-	)
-
-	z_vals = 10 .^ range(-5, stop=-1, length=100)
-
-	for col in col_names[2:end]
-		scatter!(
-			ax, 
-			Q_metals, eta_ion[!, col], 
-			linewidth = 3, 
-			label = col,
-		)
-		lines!(
-			ax, 
-			z_vals,  itp_ion[col](z_vals), 
-			linewidth = 3,
-			color = :red,
-		)
-	end	
-
-	axislegend(position = :lb)
-
-	f
-end
-
-# ╔═╡ 396aa4fe-5d65-4852-9cb2-03c654201f6e
-md"""### Photodissociation efficiency of $\mathrm{H}_2$ molecules ($\eta_\mathrm{diss}$)"""
-
-# ╔═╡ 399a13c4-235b-40e7-8a2f-5affd889c014
-md"""
-As we did for $\eta_\mathrm{ion}$, we integrate the $Q_\mathrm{diss}$ values (up to the maximum  stellar age we have data for ~$15 \, \mathrm{Gyr}$) for each IMF and each value of $Z$, resulting in the following table
-"""
-
-# ╔═╡ f6c88e38-5f80-4ab7-afef-4f3249af8723
-begin
-    table_diss = Array{Float64}(undef, 6, 0)
-	
-    for imf in Q_imfs
-        sol = Float64[]
-        for met in Q_metals
-			sub_df = @subset(imf, :Zmet .== met, $("log(age)") .< MAX_AGE)
-	    	ages = exp10.(sub_df[!, "log(age)"]) * u"yr"
-    	    QHII = sub_df[!, "Q_diss"]
-    	    append!(sol, uconvert(Unitful.NoUnits, trapz(ages, QHII) * f_diss))
-        end
-        global table_diss = hcat(table_diss, sol)
-    end
-	
-    table_diss = hcat(Q_metals, table_diss)
-	eta_diss = DataFrame(table_diss, col_names)
-end
-
-# ╔═╡ ff8a6018-dd86-4b09-a122-a72e0dfa7013
-let
-	f = Figure()
-	ax = Axis(
-		f[1,1], 
-		xlabel = L"Z", 
-		ylabel = L"\eta_\mathrm{diss}",
-		xlabelsize = 30,
-		ylabelsize = 30,
-		xticklabelsize = 20,
-		yticklabelsize = 20,
-		yscale = log10,
-		xscale = log10,
-	)
-
-	for col in col_names[2:end]
-		scatterlines!(
-			ax, 
-			Q_metals, eta_diss[!, col], 
-			linewidth = 3, 
-			label = col,
-		)
-	end
-
-	axislegend(position = :lb)
-
-	f
-end
-
-# ╔═╡ 2c58b32c-e731-467b-b051-7063b3d3e341
-md"""#### Photodissociation efficiency as a function of the maximum stellar age"""
-
-# ╔═╡ 2b7d684e-3db3-4966-9993-0446a7db7edb
-md"""
-At fix metallicity (Z = 0.008).
-"""
-
-# ╔═╡ 0a465f30-6904-4195-830e-21cfb00fb63a
-begin
-    table_z_diss = Array{Float64}(undef, length(AGES), 0)
-	
-    for imf in Q_imfs
-        sol = Float64[]
-        for age in AGES
-			sub_df = @subset(imf, :Zmet .== METAL, $("log(age)") .< age)
-			ages = exp10.(sub_df[!, "log(age)"]) * u"yr"
-    	    QHII = sub_df[!, "Q_diss"]
-    	    append!(sol, uconvert(Unitful.NoUnits, trapz(ages, QHII) * f_diss))
-        end
-    	global table_z_diss  = hcat(table_z_diss, sol)
-	end
-
-	table_z_diss = hcat(AGES, table_z_diss)
-	eta_z_diss = DataFrame(table_z_diss, ["log(age)", col_names[2:end]...])
-end
-
-# ╔═╡ d7871e31-d841-4951-aec5-d6f2915d0ceb
-let
-	f = Figure()
-	ax = Axis(
-		f[1,1], 
-		xlabel = L"\mathrm{Stellar} \,\, \mathrm{age}", 
-		ylabel = L"\eta_\mathrm{diss}",
-		xlabelsize = 30,
-		ylabelsize = 30,
-		xticklabelsize = 20,
-		yticklabelsize = 20,
-		titlesize = 25,
-		xscale = log10,
-		title = L"Z = 0.008",
-	)
-
-	for col in col_names[2:end]
-		scatterlines!(
-			ax, 
-			AGES, eta_z_diss[!, col], 
-			linewidth = 3, 
-			label = col,
-		)
-	end
-
-	axislegend(position = :lt)
-
-	f
-end
-
-# ╔═╡ 9b738a7d-1a85-460b-9585-6ee4f32b41ae
-md"""
-At fix IMF ([Kroupa et al. 2001](https://doi.org/10.1046/j.1365-8711.2001.04022.x)).
-"""
-
-# ╔═╡ afdb1375-ac94-4dcc-8fcb-c732e6029b83
-begin
-    table_imf_diss = Array{Float64}(undef, length(AGES), 0)
-	
-    for met in Q_metals
-        sol = Float64[]
-        for age in AGES
-			sub_df = @subset(Q_imfs[1], :Zmet .== met, $("log(age)") .< age)
-			ages = exp10.(sub_df[!, "log(age)"]) * u"yr"
-    	    QHII = sub_df[!, "Q_diss"]
-    	    append!(sol, uconvert(Unitful.NoUnits, trapz(ages, QHII) * f_diss))
-        end
-    	global table_imf_diss  = hcat(table_imf_diss, sol)
-	end
-
-	table_imf_diss = hcat(AGES, table_imf_diss)
-	eta_imf_diss = DataFrame(table_imf_diss, ["log(age)", string.(Q_metals)...])
-end
-
-# ╔═╡ 1e2f1eff-3295-4eae-ac83-569e9f8211fd
-let
-	f = Figure()
-	ax = Axis(
-		f[1,1], 
-		xlabel = L"\mathrm{Stellar} \,\, \mathrm{age}", 
-		ylabel = L"\eta_\mathrm{diss}",
-		xlabelsize = 30,
-		ylabelsize = 30,
-		xticklabelsize = 20,
-		yticklabelsize = 20,
-		titlesize = 25,
-		xscale = log10,
-		title = L"Kroupa et al. $2001$"
-	)
-
-	for met in Q_metals
-		scatterlines!(
-			ax, 
-			AGES, eta_imf_diss[!, string(met)], 
-			linewidth = 3, 
-			label = string(met),
-		)
-	end
-
-	axislegend(position = :lt)
-
-	f
-end
-
-# ╔═╡ 67dfb1b3-4818-445f-bfe2-16d442506567
-md"""### Approximations of $\eta_\mathrm{diss}$"""
-
-# ╔═╡ 3da12a3d-bc26-4115-b769-78841499e434
-md"""#### Fitting"""
-
-# ╔═╡ 64fda1f0-8fcf-4898-b3dd-883f151f69b3
-md"""Using the same fitting function as for $\eta_\mathrm{ion}$, we get"""
-
-# ╔═╡ 76136e33-14f7-4c5e-84e9-970372c6c01a
-begin
-	diss_coeff = DataFrame("coeff" => ["p1", "p2", "p3"])
-	
-	for (ydata, colname) in zip(eachcol(eta_diss[!, 2:end]), col_names[2:end])
-		fit = curve_fit(model, xdata, ydata, p0)
-		diss_coeff[!, colname] = coef(fit)
-	end
-
-	diss_coeff
-end
-
-# ╔═╡ 1fce7934-0ce4-4059-ba8e-691f1c505f4d
-let
-	f = Figure()
-	ax = Axis(
-		f[1,1], 
-		xlabel = L"Z", 
-		ylabel = L"\eta_\mathrm{diss}",
-		xlabelsize = 30,
-		ylabelsize = 30,
-		xticklabelsize = 20,
-		yticklabelsize = 20,
-		titlesize = 25,
-		yscale = log10,
-		xscale = log10,
-		title = "Fitting"
-	)
-
-	for (i, col) in enumerate(col_names[2:end])
-		scatter!(
-			ax, 
-			Q_metals, eta_diss[!, col], 
-			linewidth = 3, 
-			label = col,
-		)
-		lines!(
-			ax, 
-			Q_metals,  model(Q_metals, diss_coeff[!, i + 1]), 
-			linewidth = 3,
-			color = :red,
-		)
-	end	
-
-	axislegend(position = :lb)
-
-	f
-end
-
-# ╔═╡ e9eca322-1466-4d18-af62-28d3edd42cfc
-md"""#### Interpolation"""
-
-# ╔═╡ 68502224-d186-464b-8d35-1ce9ad0a9994
-# Interpolation
-itp_diss = Dict(
-	colname => LinearInterpolation(xdata, ydata, extrapolation_bc = Flat()) for 
-	(ydata, colname) in zip(eachcol(eta_diss[!, 2:end]), col_names[2:end])
-);
-
-# ╔═╡ f017b433-05dd-48bc-b0b4-f70a39100b2d
-let
-	f = Figure()
-	ax = Axis(
-		f[1,1], 
-		xlabel = L"Z", 
-		ylabel = L"\eta_\mathrm{diss}",
-		xlabelsize = 30,
-		ylabelsize = 30,
-		xticklabelsize = 20,
-		yticklabelsize = 20,
-		titlesize = 25,
-		yscale = log10,
-		xscale = log10,
-		title = "Interpolation"
-	)
-
-	z_vals = 10 .^ range(-5, stop=-1, length=100)
-
-	for col in col_names[2:end]
-		scatter!(
-			ax, 
-			Q_metals, eta_diss[!, col], 
-			linewidth = 3, 
-			label = col,
-		)
-		lines!(
-			ax, 
-			z_vals,  itp_diss[col](z_vals), 
-			linewidth = 3,
-			color = :red,
-		)
-	end	
-
-	axislegend(position = :lb)
-
-	f
-end
-
-# ╔═╡ 533b3cd0-c1f6-4ecd-b196-4ed35bf77135
-md"""
-
-## Mass recycling
-
-There are two mass recycling parameters, $R$ which is defined as the mass fraction of a stellar population that is returned to the ISM under the instantaneous recycling hypothesis (stars under certain mass live forever, and stars above that mass die instantly), and $Z_\mathrm{SN}$ which is the fraction of the returned gas that is composed of metals (the rest is assumed to be ionized gas). 
-A stellar yield model gives the amount (as a fraction of the stellar mass) of each modeled element that is returned to the ISM by stars with masses between $m$ and $m + \mathrm{d}m$, so they can be used to compute
-
-$\begin{equation}
-	R = \dfrac{\int_{m_\mathrm{ir}}^{m_\mathrm{high}} (m - m_\mathrm{rem}(m)) \, \phi(m) \mathrm{d}m}{\int_{m_\mathrm{low}}^{m_\mathrm{high}} m \, \phi(m) \mathrm{d}m} \, ,
-\end{equation}$
-
-where $\phi(m)$ is the initial mass function (ISM), $m_\mathrm{low}$ and $m_\mathrm{high}$ are the extremes in the mass range of the ISM used, $m_\mathrm{ir}$ is the mass limit for the instantaneous mass recycling hypothesis, and $m_\mathrm{rem}(m)$ is the remnant stellar mass given by the yield model.
-
-Using the same notation we can calculate $Z_\mathrm{SN}$ as
-
-$\begin{equation}
-	Z_\mathrm{SN} = \dfrac{\int_{m_\mathrm{ir}}^{m_\mathrm{high}} m \, f_Z \, \phi(m) \mathrm{d}m}{\int_{m_\mathrm{ir}}^{m_\mathrm{high}} (m - m_\mathrm{rem}(m)) \, \phi(m) \mathrm{d}m} \, ,
-\end{equation}$
-
-where $f_Z$ is the fraction of the stellar mass that is returned to the ISM as metals.
-
-Notice that the denominator in the expression for $R$ is the total mass of the stellar population modeled by $\phi(m)$, so is only action as a normalization given that the IMF is always defined except for a global constant.
-
-Some traditional choices for the masses are $m_\mathrm{ir} = 8 \, M_\odot$, $m_\mathrm{low} = 0.08 \, M_\odot$ (the limit for hydrogen fusion), and $m_\mathrm{low} = 100 \, M_\odot$ (an order of magnitude for the upper limit of validity of the yield models, given by experimental limitations).
-
-[Ascasibar2015](https://doi.org/10.1093/mnras/stv098) got $R \approx 0.18$ and $Z_{SN} \approx 0.09$, using the yield model of [Woosley1995](https://doi.org/10.2172/115557) and the IMF of [Kroupa2001](https://doi.org/10.1046/j.1365-8711.2001.04022.x), even though it is not clear which mass limits were used.
-
-The two previous equations were taken from [_Nucleosynthesis and Chemical Evolution of Galaxies_](https://doi.org/10.1017/CBO9780511812170) by Bernard Pagel (eq. 7.24 and 7.26), and [_Chemical Evolution
-of Galaxies_](https://doi.org/10.1007/978-94-010-0967-6) by Francesca Matteucci (eq. 3.9 and 3.14).
-"""
-
-# ╔═╡ 97e7f37b-9494-4ae9-a076-77b90a974a81
-begin
-	model_names = Dict(
-		"Woosley1995" => "WOW",
-		"Portinari1998" => "PCB", 
-		"Chieff2004" => "CLI", 
-		"Kobayashi2006" => "KOB",
-		"Heger2010" => "HEG",
-		"Limongi2012" => "LIM", 
-	)
-	md"""
-	We will consider the stellar yields models by
-	
-	 -  "WOW" --> [Woosley et al. 1995](https://doi.org/10.2172/115557)
-	 -  "PCB" --> [Portinari et al. 1998](https://ui.adsabs.harvard.edu/abs/1998A&A...334..505P)
-	 -  "CLI" --> [Chieff et al. 2004](https://doi.org/10.1086/392523)
-	 -  "KOB" --> [Kobayashi et al. 2006](https://doi.org/10.1086/508914)
-	 -  "HEG" --> [Heger et al. 2010](https://doi.org/10.1088/0004-637X/724/1/341)
-	 -  "LIM" --> [Limongi et al. 2012](https://doi.org/10.1088/0067-0049/199/2/38)
-	
-	compiled by [Mollá2015](https://doi.org/10.1093/mnras/stv1102), which are summarized in the following table, where
-	  - `model`: Stellar yield model
-	  - `s_Z`: Metallicity of the stellar population modeled by the IMF
-	  - `s_m`: Stellar mass
-	  - `m_rem`: Remnant mass, after stellar death
-	  - `zf_rem`: Fraction of the stellar mass ejected as metals to the ISM
-	"""
-end
-
-# ╔═╡ be85ba3b-5439-4cf3-bb14-d24d61a283c3
-begin
-	# Raw stellar yields from 
-	# Mollá et al. 2015 (https://doi.org/10.1093/mnras/stv1102)
-	sy_files = readdir("./data/stellar_yields", join = true)
-	
-	sy_data = DataFrame[]
-	
-	for file in sy_files
-		
-		data = readdlm(file, skipstart = 1)
-		df = identity.(
-			DataFrame(
-				data, 
-				["s_Z", "s_m", "H", "D", "He3", "He4", "C12", "O16", "Ne20", "Mg24", "Si28", "S32", "Ca40", "Fe56", "m_rem", "C13s", "N14s"],
-			),
-		)
-
-		name = uppercase(getindex(getproperty(
-			match(r"^(.+?)(\.[^.]*$|$)", basename(file)), 
-			:captures,
-		), 1))
-		
-		# Stellar mass
-		df[!, 2] = df[!, 2] .* u"Msun"
-		# Remnant mass
-		df[!, 15] = df[!, 15] .* u"Msun"
-
-		insertcols!(df, 1, "model" => fill(name, length(df[!, 1])))
-
-		# See eq. 1 and 2 from Mollá et al. 2015 (https://doi.org/10.1093/mnras/stv1102)
-		@transform! df begin
-           :zf_rem = (
-			   :C12 .+ :O16 .+ :Ne20 .+ :Mg24 .+ :Si28 .+ :S32 
-			   .+ :Ca40 .+ :Fe56 .+ :C13s .+ :N14s .+ (1 .- :m_rem ./ :s_m) .* :s_Z
-		   )
-       end
-
-		select!(
-			df, 
-			Not(["H", "D", "He3", "He4", "C12", "O16", "Ne20", "Mg24", 
-				"Si28", "S32", "Ca40", "Fe56", "C13s", "N14s"]),
-		)
-
-		push!(sy_data, df)
-	end
-	
-	sy_data = sort(vcat(sy_data...), ["model", "s_Z", "s_m"])
-	
-	# Metallicities
-	sy_metallicities = unique(sy_data[!, "s_Z"])
-	# Masses
-	sy_masses = unique(sy_data[!, "s_m"]) 
-
-	# Columns:
-	#   model: Stellar yield model
-	#   s_Z: Metallicity of the stellar population modeled by the IMF
-	#   s_m: Stellar mass
-	#   m_rem: Remnant mass, after stellar death
-	#   zf_rem: Fraction of the stellar mass ejected as metals to the ISM
-	sy_data
-end
-
-# ╔═╡ d1e89b59-bc6f-46fd-a7cd-126fad530916
-md"""
-With the choice $m_\mathrm{low} = 0.08 \, M_\odot$, $m_\mathrm{high} = 100 \, M_\odot$, and $m_\mathrm{ir} = 8 \, M_\odot$ we get the following $R$ and $Z_\mathrm{SN}$,
-"""
-
-# ╔═╡ 49d39360-3609-407c-bfee-c46e7485727a
-md"""
-Averaging over stellar metallicity (`s_Z` column), and varying $m_\mathrm{high}$ between $30 \, M_\odot$ and $100 \, M_\odot$, we get the following plots, where the error bars indicate the standard deviation for varying the stellar metallicity.
-We choose for the plots the [Chabrier2003](https://doi.org/10.1086/374879) IMF and the [Portinari1998](https://ui.adsabs.harvard.edu/abs/1998A&A...334..505P) yield model.
-"""
-
-# ╔═╡ 9666bdc8-cbc0-4757-9bd8-a76477c252eb
-md"# Implementation"
-
-# ╔═╡ ca9a233b-d3ca-4a76-a3d8-f29884ac9484
-md"## Constants"
-
-# ╔═╡ e2e4ae4f-dcdc-4999-88f2-853378be859a
-md"## Equations"
-
-# ╔═╡ 2be98f2a-57a2-4f53-ad53-b1c0e9e9aafa
-md"""
-Each equation has units of $\mathrm{Gyr}^{-1}$, the parameter $\rho_0$ has to have units of $\mathrm{M_\odot} \, \mathrm{pc}^{-3}$, and the parameter $g_0$ should be dimensionless.
-
-```
-Ionized gas fraction:       i(t) / ρ -> y[1]
-Atomic gas fraction:        a(t) / ρ -> y[2]
-Molecular gas fraction:     m(t) / ρ -> y[3]
-Metal fraction:             z(t) / ρ -> y[4]
-Stellar fraction:           s(t) / ρ -> y[5]	
-
-where ρ = i(t) + a(t) + m(t) + s(t)
-```   
-
-"""
-
-# ╔═╡ 01c985a1-4d3d-4799-8e9e-5e25390a9fbb
-md"""## Jacobian"""
-
-# ╔═╡ ceec9b81-6a43-4bb9-bb74-b309ef4c3037
-md"# Functions"
-
-# ╔═╡ 4607856c-7472-4131-a2ee-29f7150f5cb4
-md"## Integration"
-
-# ╔═╡ 4cfe1c80-c67e-4dd3-825b-d893800d68c0
-md"## Density PDF"
-
-# ╔═╡ d7ba9e0c-5cfa-4176-adff-12cb8e20679b
-md"### Parameters for the density PDF"
-
-# ╔═╡ 82e78dc9-b89e-48d9-9f70-6f3238dfd196
-Base.@kwdef struct Params
-	# Power law slope
-	α::Float64
-	# Dimensionless turbulent forcing parameter
-	b::Float64
-	# Mach number
-	Ms::Float64
-	# (min, max) values of s = log(ρ/ρ₀)
-	deviation::NTuple{2,Float64}
-	# Number of subdivisions of the variable (s = log(ρ/ρ₀) or f = ρ/ρ₀)
-	divisions::Int64
-	# Total initial mean density in Mₒ pc^(-3)
-	ρ₀::Float64        
-end;
-
-# ╔═╡ 7a2987ef-d37e-4c7a-aaa8-8186694bea88
-function mass_fraction(
-	ρ_PDF::Union{Nothing,Function}, 
-	params::Params,
-	log_var::Bool,
-)::NTuple{2, Vector{Float64}}
-
-	if params.divisions == 1
-		return [1,], [log_var ? 0 : 1.0,]
-	end
-
-	# Which variable will be used
-	# log_var == true:  s = log(ρ/ρ₀)
-	# log_var == false: f = ρ/ρ₀
-	dev = log_var ? params.deviation : exp.(params.deviation)
-			
-	# Step in the range of the variable (s = log(ρ/ρ₀) or f = ρ/ρ₀)
-    step = (dev[2] - dev[1]) / params.divisions
-
-	# Values of the variable (s = log(ρ/ρ₀) or f = ρ/ρ₀)
-	points = [dev[1] + step * (i - 0.5) for i in 1:params.divisions]
-
-	# Fractions of mass within each division
-	mass_f = [quadgk(
-		x -> ρ_PDF(x, params), 
-		log_var ? point - (step / 2) : log(point - (step / 2)), 
-		log_var ? point + (step / 2) : log(point + (step / 2)), 
-		order = 10,
-	)[1] for point in points]
-
-	return mass_f, points
-	
-end;
-
-# ╔═╡ 34c053bf-0b4f-45c4-bb79-7e5e89a26060
-md"### Density PDF by Burkhart et al. (2018)"
-
-# ╔═╡ 768f8ffb-a08b-4498-97e4-1a3a866e69c7
-function pBurkhart2018(s, params)
-	
-	b = params.b
-	Ms = params.Ms
-	α = params.α
-	
-	σs2 = log(1 + b^2 * Ms^2)
-	s0 = -0.5 * σs2
-	st = (α - 0.5) * σs2
-	C = exp((α - 1) * 0.5 * α * σs2) / sqrt(2π * σs2)
-	N = 1 / ((C * exp(-α * st)) / α + 0.5 + 0.5 * erf((2 * st + σs2) / sqrt(8 * σs2)))
-	
-	if s < st
-		return (N / sqrt(2π * σs2)) * exp(-((s - s0)^2) / (2 * σs2))
-	else
-		return N * C * exp(-α * s)
-	end
-	
-end;
-
-# ╔═╡ 8864b4d3-6a9f-4e7b-8cd6-ed32a0116f4a
-md"### Density PDF by Krumholz et al. (2005)"
-
-# ╔═╡ aad5e227-67a5-49a0-a79d-24160d3ebe06
-function pKrumholz2005(s, params)
-	
-	b = params.b
-	Ms = params.Ms
-	
-	σs2 = log(1 + b^2 * Ms^2)
-	s0 = -0.5 * σs2
-	
-	return exp(-((s - s0)^2) / (2 * σs2)) / sqrt(2π * σs2)
-	
-end;
-
-# ╔═╡ b3a260b6-eb31-43a0-9fd6-60a507984319
-md"""
-## Initial mass functions (IMF)
-
-The initial mass function $\phi(m)$ gives the number of stars between mass $m$ and $m + \mathrm{d}m$, for a given population of total mass $M$, given by the relation
-
-$\begin{equation}            
-    M = \int_{m_\mathrm{low}}^{m_\mathrm{high}} m \, \phi(m) \, \mathrm{d}m \, ,
-\end{equation}$
-
-which allows to normalize $\phi(m)$ for the population of total mass $M$, within the range $[m_\mathrm{low}, m_\mathrm{high}]$.
-
-There are many models for $\phi(m)$, but one of the most common is a simple power law
-
-$\begin{equation}            
-    \phi(m) = A \, m^{-\alpha}\, ,
-\end{equation}$
-
-where it is generally assumed that $[m] = M_\odot$ and $A$ is the normalization constant.
-
-The following implementations don't have a specific choice for normalization (when posible $A = 1$), so they have to be multiplied by a constant if one wants a given value of $M$.
-"""
-
-# ╔═╡ 5ba3a0c1-6107-45a1-9b1d-5c323b9a7145
-begin
-	# Salpeter 1955 (https://doi.org/10.1086/145971)
-	# This model is valid for 0.4 <= m / M⊙ <= 10
-	ϕSAL(m::Float64)::Float64 = m^(-2.35)
-	
-	# Miller et al. 1979 (https://doi.org/10.1086/190629)
-	# This model is valid for 0.1 <= m / M⊙ <= 62
-	const C1_MIL = 1.09
-	const C2_MIL = -1.02
-	ϕMIL(m::Float64)::Float64 = m^(-1) * exp(-(log10(m) - C2_MIL)^2 / (1 / C1_MIL))
-	
-	# Ferrini et al. 1990 (https://ui.adsabs.harvard.edu/abs/1990A%26A...231..391F)
-	# Ferrini et al. 1992 (https://doi.org/10.1086/171066)
-	# From the papers it is not clear the range of validity for this model, but it is 
-	# generaly accepted that no model is valid outside 0.072 <= m / M⊙ <= 100
-	ϕFER(m::Real)::Real = m^(-0.52) * exp10(
-		-sqrt(0.73 + log10(m) * (1.92 + 2.07 * log10(m)))
-	)
-	
-	# Kroupa 1993 (https://doi.org/10.1093/mnras/262.3.545)	
-	# This model is valid for m / M⊙ >= 0.072
-	function ϕKRO_93(m::Real)::Real
-		if m < 0.5
-			return m^(-1.2)
-		elseif 0.5 <= m < 1
-			return 0.5 * (m^-2.2)
-		else
-			return 0.5 * (m^-2.7)
-		end
-	end
-	
-	# Kroupa 2001 (https://doi.org/10.1046/j.1365-8711.2001.04022.x)
-	# This model is valid for m / M⊙ >= 0.072
-	function ϕKRO_01(m::Real)::Real
-		if m < 0.08
-			return m^-0.3
-		elseif 0.08 <= m < 0.5
-			return 0.08 * (m^-1.3)
-		else
-			return 0.0386 * (m^-2.35)
-		end
-	end
-	
-	# Chabrier 2003 (https://doi.org/10.1086/374879)
-	# This model is valid for m / M⊙ <= 10 
-	# (above m = 1 M⊙ uses Salpeter (1955) results)
-	function ϕCHA(m::Real)::Real
-		if m <= 1
-			return m^(-1) * exp(-(log10(m) - log10(0.22))^2 / (2 * 0.57^2))
-		else
-			return 0.514 * m^(-2.3)
-		end		
-	end	
-	
-	# Weidner 2005 (https://doi.org/10.1086/429867)
-	# This model is valid for m / M⊙ >= 0.072
-	function ϕWEI(m::Real)::Real
-		if m < 0.08
-			return m^(-0.3)
-		elseif 0.08 <= m < 0.5
-			return 0.08 * m^(-1.3)
-		elseif 0.5 <= m < 1
-			return 0.0386 * m^(-2.35)
-		else
-			return 0.0386 * m^(-2.7)
-		end
-	end
-
-	# Millán-Irigoyen et al. 2020 (https://doi.org/10.1093/mnras/staa635)
-	# This model is valid for 0.1 <= m / M⊙ <= 50
-	function ϕMILLA(m::Real)::Real
-		if m < 0.5
-			return m^(-1.3)
-		else
-			return 0.5 * m^(-2.3)
-		end
-	end
-
-	ϕSAL(m::Quantity)::Float64 = ϕSAL(ustrip(u"Msun", m))
-	ϕMIL(m::Quantity)::Float64 = ϕMIL(ustrip(u"Msun", m))
-	ϕFER(m::Quantity)::Float64 = ϕFER(ustrip(u"Msun", m))
-	ϕKRO_93(m::Quantity)::Float64 = ϕKRO_93(ustrip(u"Msun", m))
-	ϕKRO_01(m::Quantity)::Float64 = ϕKRO_01(ustrip(u"Msun", m))
-	ϕCHA(m::Quantity)::Float64 = ϕCHA(ustrip(u"Msun", m))
-	ϕWEI(m::Quantity)::Float64 = ϕWEI(ustrip(u"Msun", m))
-	ϕMILLA(m::Quantity)::Float64 = ϕMILLA(ustrip(u"Msun", m))
-
-	imf_funcs = Dict(
-		"Salpeter1955" => ["SAL", ϕSAL],
-		"Miller1979" => ["MIL", ϕMIL],
-		"Ferrini1990" => ["FER", ϕFER],
-		"Kroupa1993" => ["KRO93", ϕKRO_93],
-		"Kroupa2001" => ["KRO01", ϕKRO_01],
-		"Chabrier2003" => ["CHA", ϕCHA],
-		"Weidner2005" => ["WEI", ϕWEI],
-		"Millán-Irigoyen2020" => ["MILLA", ϕMILLA],
-	)
-end;
-
-# ╔═╡ 946d007d-abd7-4cd3-9789-e77b1ad6ebf4
-md"## Auxiliary functions"
-
-# ╔═╡ 45eb64c1-5af0-4987-ac1f-9d2b3dcb4c06
-deltas(v::Vector)::Vector{Float64} = [0.0, [v[i] - v[i - 1] for i in 2:length(v)]...];
-
-# ╔═╡ 1b044783-0f5f-4321-abda-35e5b7ae67c4
-# R and Zsn for a given IMF, stellar metallicity and stellar yield model
-function recycled_fraction(
-	model::String, 
-	imf::Function, 
-	z::Float64,
-	masses::Vector{<:Unitful.Quantity},
-)::NTuple{2, Float64}
-
-	m_low, m_high, m_ir = ustrip.(u"Msun", masses)
-	sub_df = @subset(sy_data, :s_Z .== z, :model .== model)
-
-	mass_df = @subset(sub_df, m_ir .* u"Msun" .< :s_m .< m_high .* u"Msun")
-	mass = mass_df[:, "s_m"]
-	
-	mass_norm = [
-		10 .^ range(log10(m_low), log10(m_high), step=0.1)..., m_high
-	] .* u"Msun"
-	
-	R_int = trapz(mass, (mass .- mass_df[!, "m_rem"]) .* imf.(mass))
-	Zsn_int = trapz(mass, mass .* mass_df[!, "zf_rem"] .* imf.(mass))
-	norm = trapz(mass_norm, mass_norm .* imf.(mass_norm))
-	
-	return R_int / norm, Zsn_int / R_int
-end;
-
-# ╔═╡ 6e3dab9c-2fbe-4705-995e-753014502ede
-# R and Zsn for a given IMF and stellar yield model, averaged over metallicity
-function recycled_fraction(
-	model::String, 
-	imf::Function,
-	masses::Vector{<:Unitful.Quantity},
-)::NTuple{2, Float64}
-	
-	sub_df = @subset(sy_data, :model .== model)
-	metals = unique(sub_df[!, :s_Z])
-	R = Float64[]
-	Zsn = Float64[]
-	
-	for z in metals
-		R_z, Zsn_z = recycled_fraction(model, imf, z, masses)
-		push!(R, R_z)
-		push!(Zsn, Zsn_z)
-	end
-	
-	return mean(R), mean(Zsn)
-end;
-
-# ╔═╡ f5ab2c06-0d7c-4d8a-84f0-b77c97a7438d
-begin
-	remanent_data = DataFrame(
-		imf = String[], 
-		model = String[], 
-		s_Z = Float64[], 
-		R = Float64[], 
-		Zsn = Float64[],
-	)
-
-	# [m_low, m_high_ m_ir]
-	# m_low: Minimum stellar mass for the IMF population
-	# m_high: Maximum stellar mass for the IMF population
-	# m_ir: Lower mass limit for the instantaneous recycling hypothesis
-	masses = [0.08, 100, 8] .* u"Msun"
-	
-	for model in values(model_names)
-		sub_df = @subset(sy_data, :model .== model)
-		metals = unique(sub_df[!, "s_Z"])
-		for z in metals
-			for imf in values(imf_funcs)
-				R, Zsn = recycled_fraction(model, imf[2], z, masses)
-				push!(remanent_data, [imf[1], model, z, R, Zsn])
-			end
-		end
-	end
-
-	sort!(remanent_data, ["imf", "model", "s_Z"])
-end
-
-# ╔═╡ 61563dc2-ee4c-4a03-9b7d-44184be7240e
-begin
-	MODEL_fix = model_names["Portinari1998"]
-	IMF_fix = imf_funcs["Chabrier2003"][2]
-	
-	M_Hs = [30, 40, 50, 60, 70, 80, 90, 100]
-	metal_df = @subset(sy_data, :model .== MODEL_fix)
-	Zs = unique(metal_df[!, "s_Z"])
-
-	R_mean = Float64[]
-	Zsn_mean = Float64[]
-	σ_R = Float64[]
-	σ_Zsn = Float64[]
-	
-	for m_high in M_Hs
-		local masses = [0.1, m_high, 8] .* u"Msun"
-		remnants = Vector{Float64}[]
-		for z in Zs
-			R, Zsn = recycled_fraction(MODEL_fix, IMF_fix, z, masses)
-			push!(remnants, [R, Zsn])
-		end
-		push!(R_mean, mean(getindex.(remnants, 1)))
-		push!(Zsn_mean, mean(getindex.(remnants, 2)))
-		push!(σ_R, std(getindex.(remnants, 1)))
-		push!(σ_Zsn, std(getindex.(remnants, 2)))
-	end
-end
-
-# ╔═╡ 19d23d0a-6f44-4444-8597-cd2e65e3ad1f
-let
-	f = Figure()
-	ax = Axis(
-		f[1,1], 
-		xlabel = L"m_\mathrm{high}", 
-		ylabel = L"R",
-		xlabelsize = 30,
-		ylabelsize = 30,
-		xticklabelsize = 20,
-		yticklabelsize = 20,
-		titlesize = 25,
-		xticks = M_Hs,
-	)
-
-	errorbars!(ax, M_Hs, R_mean, σ_R, whiskerwidth = 10, color = :red)
-	scatter!(ax, M_Hs, R_mean, markersize = 5, color = :red)
-
-	f
-end
-
-# ╔═╡ c3717165-0646-433b-8e09-d406337a2f4c
-let
-	f = Figure()
-	ax = Axis(
-		f[1,1], 
-		xlabel = L"m_\mathrm{high}", 
-		ylabel = L"Z_\mathrm{SN}",
-		xlabelsize = 30,
-		ylabelsize = 30,
-		xticklabelsize = 20,
-		yticklabelsize = 20,
-		titlesize = 25,
-		xticks = M_Hs,
-	)
-
-	errorbars!(ax, M_Hs, Zsn_mean, σ_Zsn, whiskerwidth = 10, color = :red)
-	scatter!(ax, M_Hs, Zsn_mean, markersize = 5, color = :red)
-
-	f
-end
-
-# ╔═╡ cbd6bb86-1845-4f51-bca3-59ec0e35f1af
-begin  
-	const NUMEQU = 5           # Number of equations
-	const c₁ = ustrip(C₁)      # [Gyr Mₒ^(1/2) pc^(-3/2)]
-	const c₂ = ustrip(C₂)      # [Gyr Mₒ pc^(-3)]
-	const c₃ = ustrip(C₃)      # [Gyr Mₒ pc^(-3)]
-	const Zeff = 1e-3 * Zsun
-	const MODEL = "Portinari1998"
-	const IMF = "Chabrier2003"
-
-	const R, Zsn = recycled_fraction(
-		model_names[MODEL], 
-		imf_funcs[IMF][2], 
-		[0.1, 100, 8] .* u"Msun",
-	) 
-end
-
-# ╔═╡ 8c7d7904-743d-44ed-bf50-b058e187b5ba
-function system!(dydt, y, params, t)
-	
-	# Variables
-	i, a, m, z, s = y
-	
-	# Parameters
-	ρ₀, g₀, interp_ion, interp_diss = params
-	
-	# Auxiliary equations
-	g = i + a + m
-	τS = (c₁ * g₀) / sqrt(g * ρ₀)
-    τR = c₂ / (i * ρ₀)
-    τC = c₃ / (g * ρ₀ * (z + Zeff))
-	ηdiss = interp_diss[IMF](z)
-	ηion = interp_ion[IMF](z)
-    recombination = i / τR
-    cloud_formation = a / τC
-    ψ = m / τS
-	
-	# ODE system
-    dydt[1] = -recombination + (ηion + R) * ψ         
-    dydt[2] = -cloud_formation + recombination + (ηdiss - ηion) * ψ
-    dydt[3] = cloud_formation - (1 + ηdiss) * ψ
-    dydt[4] = (Zsn * R - z) * ψ
-	dydt[5] = (1 - R) * ψ
-end;
-
-# ╔═╡ eb0b2d77-b80e-43bc-b85b-86b1e38ccdd3
-# System of equations adapted to compute the Jacobian
-function diff_system!(dydt, y, params, t)
-	
-	# Variables
-	i, a, m, z, s = y
-	
-	# Parameters
-	ρ₀, g₀, ηion, ηdiss = params
-	
-	# Auxiliary equations
-	g = i + a + m
-	τS = (c₁ * g₀) / sqrt(g * ρ₀)
-    τR = c₂ / (i * ρ₀)
-    τC = c₃ / (g * ρ₀ * (z + Zeff))
-    recombination = i / τR
-    cloud_formation = a / τC
-    ψ = m / τS
-	
-	# ODE system
-    dydt[1] = -recombination + (ηion + R) * ψ         
-    dydt[2] = -cloud_formation + recombination + (ηdiss - ηion) * ψ
-    dydt[3] = cloud_formation - (1 + ηdiss) * ψ
-    dydt[4] = (Zsn * R - z) * ψ
-	dydt[5] = (1 - R) * ψ
-end;
-
-# ╔═╡ a22bc077-0e85-457b-80bc-8f9fa27b6852
-# Analytical computation fo the Jacobian
-begin
-	@variables t y[1:NUMEQU] params[1:4]
-	dydt = Vector{Num}(undef, NUMEQU)
-	diff_system!(dydt, y, params, t)
-	
-	# Symbolic jacobian as an Array
-	jac_sym_arr = Symbolics.jacobian(dydt, y)
-	
-	# Numerical Jacobian as an Array
-	jac_num_arr = [
-		build_function(jac_sym_arr[i, j], y, params, t, expression = Val{false}) for 
-		i in 1:NUMEQU,
-		j in 1:NUMEQU
-	]
-end;
-
-# ╔═╡ 9bdbdbf7-6a1a-4bde-a12d-2181c30571bb
-function jacobian!(dydt, y, parameters, t)
-    for i in 1:NUMEQU
-		for j in 1:NUMEQU
-			dydt[(i - 1) * NUMEQU + j] = jac_num_arr[i, j](y, parameters, t)
-		end
-	end
-end;
-
-# ╔═╡ 1b738fec-65c4-46df-834f-55380b1db860
-begin
-	
-	head = "static int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *ode_params)
-{ 
-  (void)(t);
-
-  struct ODEParameters parameters = *(struct ODEParameters *)ode_params;
-  double rho0                     = parameters.rho0; /* Mean total density */
-  double g0                       = parameters.g0;   /* Initial gas fraction: (i(0) + a(0) + m(0)) / ρ */
-  double eta_ion                  = eval_interp(parameters.interp_ion, y[3]);
-  double eta_diss                 = eval_interp(parameters.interp_diss, y[3]);
-
-  gsl_matrix_view dfdy_mat = gsl_matrix_view_array(dfdy, $NUMEQU, $NUMEQU);
-  gsl_matrix *m            = &dfdy_mat.matrix;\n\n"
-	tail = "  dfdt[0] = 0;\n  dfdt[1] = 0;\n  dfdt[2] = 0;\n  dfdt[3] = 0;\n  dfdt[4] = 0;\n\n  return GSL_SUCCESS;\n}"
-
-	@variables dfdt[1:(NUMEQU * NUMEQU)]
-	dfdt= collect(dfdt)
-	jacobian_string = ""
-	
-	for i in 1:NUMEQU
-		for j in 1:NUMEQU
-			
-			index = (i - 1) * NUMEQU + j
-			dfdt[index] = jac_num_arr[i, j](y, params, t)
-			c_func = build_function(
-				simplify(dfdt[index]), 
-				y, params, t, 
-				target=Symbolics.CTarget(),
-			)
-			
-			c_func = replace(
-				c_func, 
-				"\n" => "",
-				"RHS3" => "t",
-				"RHS1" => "y",
-				"RHS2[0]" => "rho0",
- 				"RHS2[1]" => "g0",
-  				"RHS2[2]" => "eta_ion ",
-  				"RHS2[3]" => "eta_diss",
-				"+ -" => "- ",
-			)
-			m = match(r"(?<=\{)(.*?)(?=\})", c_func)
-			global jacobian_string *= replace(
-				m.match,
-				"  du[0] = " => "  gsl_matrix_set(m, $(i-1), $(j-1), ",
-				";" => ");\n"
-			)
-			
-		end
-		global jacobian_string *= "\n"
-	end
-
-	jacobian_string = replace(
-		jacobian_string, 
-		r"pow\(sqrt\((.*?)\), 2\)" => x->match(r"(?<=pow\(sqrt\()(.*?)(?=\), 2\))", x).match,
-	)
-
-	open("./data/jacobian.txt", "w") do file
-		write(file, head * jacobian_string * tail)
-	end
-	
-end;
-
-# ╔═╡ bbb7263a-91e4-4a23-9e5f-416b6b7fcf6e
-begin
-	function full_integrate_model(ic, tspan, p, args = (); kwargs = (;))
-		solve(ODEProblem(system!, ic, tspan, p), args...; kwargs...)
-	end
-	
-	const DIVISIONS = 10
-	const DEVIATION = [-4, 6]
-	const FUNCTION = pBurkhart2018
-	const PARAMS = Params(2, 0.5, 10.0, (DEVIATION...,), DIVISIONS, 0)
-	
-	function integrate_model(
-		ic::Vector{Float64}, 
-		tspan::NTuple{2, Float64}, 
-		params::Vector, 
-		ρ_PDF::Union{Nothing,Function} = nothing, 
-		rho_pdf_params::Params = PARAMS, 
-		args = (); 
-		kwargs = (;),
-	)::Vector{Float64}
-	
-		# Integration
-		if ρ_PDF === nothing
-		
-			#######################################################
-			# Integration using a single density value: ρ₀
-			#######################################################
-		
-			sol = solve(ODEProblem(system!, ic, tspan, params), args...; kwargs...)
-			fracs = sol(tspan[2])
-		
-		else
-		
-			#######################################################
-			# Integration using a distribution of densities
-			#######################################################
-
-			fracs = zeros(Float64, NUMEQU)
-			mass_f, points = mass_fraction(ρ_PDF, rho_pdf_params, true)
-
-			for i in 1:rho_pdf_params.divisions	
-	        	sol = solve(ODEProblem(
-					system!, 
-					ic, 
-					tspan, 
-					[
-						exp(points[i]) * params[1], 
-						params[2],
-						params[3], 
-						params[4],
-					],
-				), args...; kwargs...)
-				fracs .+= sol(tspan[2]) .* mass_f[i]
-			end
-		end
-	
-		return fracs
-	end
-end;
-
-# ╔═╡ d6502bbe-ea58-471d-a748-d9c8f37ce61e
-# Save the integrated version of the density PDF function 
-# in the file ./data/rho_pdf.txt
-begin
-	step = (DEVIATION[2] - DEVIATION[1]) / DIVISIONS
-	first_s = DEVIATION[1] + (step / 2)
-
-	open("./data/rho_pdf.txt", "w") do file
-		write(file, "#define DIVISIONS $DIVISIONS\n")
-		write(file, "/* Probability density function of the interstellar gas density */\n")
-		write(file, "static const double PDF[] = {\n")
-		for i in 1:DIVISIONS
-			s = first_s + step * (i - 1)
-			int_val = quadgk(
-				x -> FUNCTION(x, PARAMS), 
-				s - (step / 2), 
-				s + (step / 2), 
-				order = 10,
-			)[1]
-			write(file, "\t$int_val,\n")
-		end
-		write(file, "};\n")
-
-		write(file, "/* Density factor: rho = rho0 * F_RHO */\n")
-		write(file, "static const double F_RHO[] = {\n")
-		for i in 1:DIVISIONS
-			f = exp(first_s + step * (i - 1))
-			write(file, "\t$f,\n")
-		end
-		write(file, "};")
-	end
-end;
-
-# ╔═╡ d51d7d61-e52f-4e42-9f52-ab31c8bf4746
-function timeticks(
-	t_span::Vector{<:Unitful.Quantity}, 
-	n_steps::Int64,
-)::Vector{Float64}
-
-	tspan = ustrip.(u"Gyr", t_span)
-	
-	t_start = tspan[1] == 0.0 ? -5 : log10(tspan[1])
-	t_end = log10(tspan[2])
-	
-	step = (t_end - t_start) / n_steps
-	
-	return [10^i for i in t_start:step:t_end]
-	
-end;
-
-# ╔═╡ 28cfb49f-66b4-4cdf-8fcf-3f0019dff939
-function phase_name_to_index(name::String)::Int64
-	if name == "ionized"
-		return 1
-	elseif name == "atomic"
-		return 2
-	elseif name == "molecular"
-		return 3
-	elseif name == "metal"
-		return 4
-	elseif name == "stellar"
-		return 5
-	else
-		@error "The phase $name does not exist!, check the spelling."
-	end
-end;
-
-# ╔═╡ 8737830d-6f35-416d-bf90-cc2fbf0a4b76
+# ╔═╡ cb0b6283-0f49-4134-ae4e-8e83c178666a
 # This is from the Julia source code (evalfile in base/loading.jl) but with
 # the modification that it returns the module instead of the last object
 function include_module(path::String)
@@ -2032,113 +29,248 @@ function include_module(path::String)
 	
 end;
 
-# ╔═╡ 5d3bd48b-482b-43ed-84fb-42c2058cde74
-# Compute the interpolation function for η vs. z
-#
-# max_age::Float64 = maximum stellar age up to which the Q values will be integrated
-# ion::Bool = If the output will be the interpolation function of ηion vs. z 
-# (ion = true) or ηdiss vs. z (ion = false)
-function get_interp_eta(max_age::Float64, ion::Bool)::Dict
-	table = Array{Float64}(undef, 6, 0)
-    for imf in Q_imfs
-        sol = Float64[]
-        for met in Q_metals
-			sub_df = @subset(imf, :Zmet .== met, $("log(age)") .< max_age)
-			ages = exp10.(sub_df[!, "log(age)"]) * u"yr"
-    	    Q = sub_df[!, ion ? "Q_ion" : "Q_diss"]
-    	    append!(
-				sol, 
-				uconvert(Unitful.NoUnits, trapz(ages, Q) * (ion ? f_ion : f_diss)),
-		    )
-        end
-        table = hcat(table, sol)
-    end
+# ╔═╡ 80f254af-bbba-4203-83e0-359695ee0439
+md"# Load the model"
 
-	etas = DataFrame(table, col_names[2:end])
+# ╔═╡ 1c14aafa-60ac-43a5-9efc-6110a2e1051b
+model = include_module("./description_m019.jl");
 
-	return Dict(
-		colname => LinearInterpolation(
-			Q_metals, 
-			ydata, 
-			extrapolation_bc = Flat()
-		) for (ydata, colname) in zip(eachcol(etas), col_names[2:end])
-	)
-end;
+# ╔═╡ ef51988e-6669-4269-a5c7-3de9daba0504
+begin
+	# Variables: 
+	# 1. i₀:   Ionized fraction
+	# 2. z₀:   Metallicity
+	# 3. ρ₀:   Mean density [Mₒ pc^(-3)]
+	# 4. intt: Integration time [Gyr]
 
-# ╔═╡ 97369db9-1d27-4088-b1b4-f73434ce80ea
-function fractions(
-	phase_name::String,
-	ρ_PDF::Union{Nothing,Function}, 
-	params::Params, 
-	init_cond::Vector{Float64},
-	t_span::Vector{<:Unitful.Quantity};
-	n_steps::Int64 = 10000,
-	time_ticks::Union{Nothing,Vector{Float64}} = nothing,
-	log_var::Bool = true,
-)::NTuple{2, Vector{Float64}}
-	
-	# Time values
-	if time_ticks === nothing
-		times = timeticks(t_span, n_steps)
-	else
-		times = time_ticks
+	# Linear functions
+	function linear(idx, n, xi, xf)
+		return ((xf - xi) / (n - 1.0)) * (idx - 1.0) + xi
 	end
+	function inv_linear(fi, n, xi, xf)
+		return (fi - xi) * (n - 1.0) / (xf - xi) + 1.0
+	end
+	
+	# Number of point for each variable
+	N = [10, 10, 10, 10] 
+	# Range of values for each variable
+	i0 = [0.01, 0.99]
+	z0 = [0.0, 0.04]
+	ρ0 = ustrip.(u"Msun * pc^-3", [0.1, 1.5] .* u"mp * cm^-3")
+	it = [0.001, 0.01]
 
-	# Phase to be used in the output
-	phase_index = phase_name_to_index(phase_name)
+	# Functions: idx -> variable value
+	fun_if(idx) = linear(idx[1], N[1], i0[1], i0[2])
+	fun_zf(idx) = linear(idx[2], N[2], z0[1], z0[2])
+	fun_rh(idx) = linear(idx[3], N[3], ρ0[1], ρ0[2])
+	fun_it(idx) = linear(idx[4], N[4], it[1], it[2])
+	funcs = [fun_if, fun_zf, fun_rh, fun_it]
+	names = ["fun_if", "fun_zf", "fun_rh", "fun_it"]
 
-	# Interpolation functions to compute ηion and ηdiss
-	max_age = log10(ustrip(u"yr", t_span[2]))
-	interp_eta_ion = get_interp_eta(max_age, true)
-	interp_eta_diss = get_interp_eta(max_age, false)
+	# Inverse functions: variable value -> idx
+	inv_fun_if(fi) = inv_linear(fi[1], N[1], i0[1], i0[2])
+	inv_fun_zf(fi) = inv_linear(fi[2], N[2], z0[1], z0[2])
+	inv_fun_rh(fi) = inv_linear(fi[3], N[3], ρ0[1], ρ0[2])
+	inv_fun_it(fi) = inv_linear(fi[4], N[4], it[1], it[2])
+	inv_funcs = [inv_fun_if, inv_fun_zf, inv_fun_rh, inv_fun_it]
+	inv_names = ["inv_fun_if", "inv_fun_zf", "inv_fun_rh", "inv_fun_it"]
 
-	# Integration
-	if ρ_PDF === nothing
-		
-		#######################################################
-		# Integration using a single density value: ρ₀
-		#######################################################
-		
-		sol = integrate_model(
-			init_cond, 
-			ustrip.(u"Gyr", t_span),
-			[
-				params.ρ₀, 
-				init_cond[1] + init_cond[2] + init_cond[3], 
-				interp_eta_ion, 
-				interp_eta_diss,
-			],
+	# ρ PDF parameters
+	const DIVISIONS = 10
+	const DEVIATION = [-4, 6]
+	const FUNCTION = model.pBurkhart2018
+	const PARAMS = model.Params(2, 0.5, 10.0, (DEVIATION...,), DIVISIONS, 0)
+
+	# Clean previus table
+	rm("./data/ode_table.txt", force=true)
+	rm("./data/ode_table_rho_pdf.txt", force=true)
+end
+
+# ╔═╡ bb405530-d56e-40ec-8547-93f66b30d497
+begin
+	function c_func(fun::Function, name::String)::String
+		head = "static double $name(double *idx) { return ("
+		tail = "); }\n"
+		@variables idx[1:4]
+		c_func = build_function(simplify(fun(idx)), idx, target=Symbolics.CTarget())
+		raw_str = head * match(r"(?<== )(.*?)(?=;\n\})", c_func).match * tail
+		str_out = replace(
+			raw_str,
+			"RHS1" => "idx", 
+			"+ -" => "- ",
+			" * 1)" => ")",
+			"* 1 " => "",
+			"1.0 * " => "",
 		)
-		frac = sol(times)[phase_index, :]
+		return str_out
+	end
+	
+	open("./data/functions.txt", "w") do file
+		write(file, "/* Index to value functions */\n")
 		
-	else
-		
-		#######################################################
-		# Integration using a distribution of densities
-		#######################################################
-
-		frac = zeros(Float64, length(times))
-		mass_f, points = mass_fraction(ρ_PDF, params, log_var)
-
-		for i in 1:params.divisions	
-	        sol = integrate_model(
-				init_cond, 
-				ustrip.(u"Gyr", t_span), 
-				[
-					log_var ? exp(points[i]) * params.ρ₀ : points[i] * params.ρ₀, 
-					init_cond[1] + init_cond[2] + init_cond[3],
-					interp_eta_ion, 
-					interp_eta_diss,
-				],
-			)
-			frac .+= sol(times)[phase_index, :] .* mass_f[i]
+		for (fun, name) in zip(funcs, names) 
+			write(file, c_func(fun, name))
 		end
 
-	end	
-	
-	return times, frac
-	
+		write(file, "/* Value to index functions */\n")
+
+		for (inv_fun, inv_name) in zip(inv_funcs, inv_names) 
+			write(file, c_func(inv_fun, inv_name))
+		end
+		
+		N_str = replace(string(N), '[' => '{', ']' => '}')
+		names_str = replace(string(names), '[' => '{', ']' => '}', '\"' => "")
+		inv_names_str =  replace(
+			string(inv_names), 
+			'[' => '{', ']' => '}', '\"' => "",
+		)
+		tail = "\ndouble (*FUN[])(double *) = $names_str;\ndouble (*INV_FUN[])(double *) = $inv_names_str;\nconst int NGRID[] = $N_str;\n"
+		
+		write(file, tail)
+	end
 end;
+
+# ╔═╡ 3e79362b-8ff1-4918-87bf-b624d0281bd0
+for i in 1:N[1]
+	for j in 1:N[2]
+		for k in 1:N[3]
+			for l in 1:N[4]
+				
+				# Initial conditions
+				idx = [i, j, k, l]
+				i₀ = funcs[1](idx) 
+				z₀ = funcs[2](idx) 
+				ρ₀ = funcs[3](idx)
+				it = funcs[4](idx)  
+
+				# Parameters
+				a₀ = 1- i₀
+				m₀ = 0.0
+				s₀ = 0.0
+				ic = [i₀, a₀, m₀, z₀, s₀]
+				tspan = (0.0, it)
+				max_age = log10(it * 1e9)
+				interp_eta_ion = model.get_interp_eta(max_age, true)
+				interp_eta_diss = model.get_interp_eta(max_age, false)
+				parameters = [
+					ρ₀,   # ρ₀ [Mₒ pc^(-3)]
+					1.0,  # g₀
+					interp_eta_ion,
+					interp_eta_diss,
+				]
+	
+				# Integration
+    			sol = try 
+					model.integrate_model(
+						ic, 
+						tspan, 
+						parameters, 
+						nothing,
+						PARAMS,
+						(TRBDF2(),),
+					)
+				catch _
+					NaN
+				end
+				if typeof(sol) == Float64
+					# Results
+					i_f = NaN
+					a_f = NaN
+					m_f = NaN
+					z_f = NaN
+					s_f = NaN
+				else
+					# Results 
+					i_f = sol[1]
+					a_f = sol[2]
+					m_f = sol[3]
+					z_f = sol[4]
+					s_f = sol[5]
+				end
+		
+				# Write to file
+				str_out = @sprintf(
+					"%.8f %.8f %.8f %.8f %.12f\n", 
+					i₀, z₀, ρ₀, it, s_f,
+				)
+				open("./data/ode_table.txt", "a") do file
+					write(file, str_out)
+				end
+			end
+		end
+	end
+end
+
+# ╔═╡ 7e956d53-e5ae-4194-b563-3726356addf0
+for i in 1:N[1]
+	for j in 1:N[2]
+		for k in 1:N[3]
+			for l in 1:N[4]
+				
+				# Initial conditions
+				idx = [i, j, k, l]
+				i₀ = funcs[1](idx) 
+				z₀ = funcs[2](idx) 
+				ρ₀ = funcs[3](idx)
+				it = funcs[4](idx)  
+
+				# Parameters
+				a₀ = 1- i₀
+				m₀ = 0.0
+				s₀ = 0.0
+				ic = [i₀, a₀, m₀, z₀, s₀]
+				tspan = (0.0, it)
+				max_age = log10(it * 1e9)
+				interp_eta_ion = model.get_interp_eta(max_age, true)
+				interp_eta_diss = model.get_interp_eta(max_age, false)
+				parameters = [
+					ρ₀,   # ρ₀ [Mₒ pc^(-3)]
+					1.0,  # g₀
+					interp_eta_ion,
+					interp_eta_diss,
+				]
+	
+				# Integration
+    			sol = try 
+					model.integrate_model(
+						ic, 
+						tspan, 
+						parameters,
+						model.pBurkhart2018,
+						PARAMS,
+						(TRBDF2(),),
+					)
+				catch _
+					NaN
+				end
+				if typeof(sol) == Float64
+					# Results
+					i_f = NaN
+					a_f = NaN
+					m_f = NaN
+					z_f = NaN
+					s_f = NaN
+				else
+					# Results 
+					i_f = sol[1]
+					a_f = sol[2]
+					m_f = sol[3]
+					z_f = sol[4]
+					s_f = sol[5]
+				end
+		
+				# Write to file
+				str_out = @sprintf(
+					"%.8f %.8f %.8f %.8f %.12f\n", 
+					i₀, z₀, ρ₀, it, s_f,
+				)
+				open("./data/ode_table_rho_pdf.txt", "a") do file
+					write(file, str_out)
+				end
+			end
+		end
+	end
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2154,6 +286,7 @@ Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LsqFit = "2fda8390-95c7-5789-9bda-21331edee243"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
@@ -2165,25 +298,22 @@ UnitfulAstro = "6112ee07-acf9-5e0f-b108-d242c714bf9f"
 
 [compat]
 CSV = "~0.10.4"
-CairoMakie = "~0.8.3"
+CairoMakie = "~0.8.8"
 DataFrames = "~1.3.4"
 DataFramesMeta = "~0.11.0"
 DifferentialEquations = "~7.1.0"
-HDF5 = "~0.16.9"
+HDF5 = "~0.16.10"
 Interpolations = "~0.13.6"
 LaTeXStrings = "~1.3.0"
 LsqFit = "~0.12.1"
 PlutoUI = "~0.7.39"
 QuadGK = "~2.4.2"
 SpecialFunctions = "~2.1.6"
-Symbolics = "~4.6.0"
+Symbolics = "~4.8.0"
 TikzPictures = "~3.4.2"
 Trapz = "~2.0.3"
 Unitful = "~1.11.0"
 UnitfulAstro = "~1.1.1"
-
-[extras]
-CPUSummary = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -3898,9 +2028,9 @@ version = "0.19.10"
 
 [[deps.Symbolics]]
 deps = ["ArrayInterfaceCore", "ConstructionBase", "DataStructures", "DiffRules", "Distributions", "DocStringExtensions", "DomainSets", "Groebner", "IfElse", "Latexify", "Libdl", "LinearAlgebra", "MacroTools", "Metatheory", "NaNMath", "RecipesBase", "Reexport", "Requires", "RuntimeGeneratedFunctions", "SciMLBase", "Setfield", "SparseArrays", "SpecialFunctions", "StaticArrays", "SymbolicUtils", "TermInterface", "TreeViews"]
-git-tree-sha1 = "95b2f167e2c6ab8fcbbcf6be215360a3a48c9090"
+git-tree-sha1 = "0aa24f1676325ddf682b02aa7ab2fddc35467abe"
 uuid = "0c5d862f-8b57-4792-8d23-62f2024744c7"
-version = "4.6.1"
+version = "4.8.0"
 
 [[deps.TOML]]
 deps = ["Dates"]
@@ -4205,122 +2335,13 @@ version = "3.5.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═982068e0-59bb-11ec-27f5-51126c2ba1df
-# ╟─08df960b-fd82-43ba-a9dc-bf5e83af587e
-# ╟─3b1726c6-60c2-45be-932d-efa8d2ef23e0
-# ╟─6173713c-92b0-43ec-8713-1cbf442aa1ce
-# ╟─a842b24e-8d26-41ab-9de3-91632aede893
-# ╟─64787011-b5b8-42be-b6e4-37ebc5138b3e
-# ╟─76fe97bd-36c8-40d2-9b5a-0ea5059bd7c7
-# ╟─14c7f574-0623-4254-b8f7-97984d32351c
-# ╟─bc9ab101-7cc3-4baa-b83d-ce546f6b576d
-# ╟─047bbd39-9cf9-4bd7-b38e-16aa505b0b08
-# ╟─2fe0dc4c-da44-4fc8-bef8-1fa615a0fe4a
-# ╟─eaf272c7-4162-4a9a-92e3-9835c6158394
-# ╟─ac553b12-4857-4cc1-8ea2-fe9e8863b429
-# ╟─dc6fd12b-c821-4e20-a896-25c8aab9df94
-# ╟─1d27ec35-65ca-4c94-9e8d-54d1c11e759f
-# ╟─68732d91-805a-4663-9166-f8483213a8d2
-# ╟─27281e53-e519-4ad0-af5d-59fb0e208534
-# ╟─6503fb74-c34f-40db-afb4-7affd4ceef88
-# ╟─f6251e55-f88b-4f53-8449-e30b0bf9ae44
-# ╟─7099a821-a0f0-4931-b6cf-88581e9cff9e
-# ╟─4a7eb24b-0874-49a3-9b08-4ffb6a7f0ce7
-# ╟─f2a6676f-457a-476a-9ce7-c336aa9bf47f
-# ╟─040e1a8c-97ab-4751-a556-ed936fe58c35
-# ╟─3767c7f9-a0bc-467a-a20a-5e5a266111c7
-# ╟─127e1dfa-62d8-4721-adc8-cb24c6e9cdcc
-# ╟─005957d6-6f27-4abc-a872-45cf6a032b9f
-# ╟─0fcd2ad5-440c-4128-be21-1f8a354074fe
-# ╟─f8b02d00-ff30-480e-b5eb-e150e4678c95
-# ╟─44c88ad8-a8c3-45e3-9a56-be3ce5bf66fa
-# ╟─448e1dee-4628-4c14-9d6f-dc165b2e826e
-# ╟─c7409abf-dc22-429e-ad4d-e2cbd465d454
-# ╟─aa5e9990-db35-4a91-912e-f839daf6c686
-# ╟─342c1ad8-338e-44e2-adec-7638fe1767a2
-# ╟─7788b98a-5bec-4b6d-82d9-2c272e2255a7
-# ╟─7af2d4a6-a304-404d-8cbe-eeddb80beba6
-# ╟─aeb72f0e-2252-486a-b79b-9d8cc6e5f962
-# ╟─e83337bd-8c2d-4a9a-bd8b-7f8201cf67ad
-# ╟─b8beaaa6-b018-4ca8-b19d-a918dc761707
-# ╟─43eb3af9-86c5-49e9-af0e-3270e3df493e
-# ╟─05d22c2d-f76f-4931-8e21-6d31e9ab178e
-# ╟─ea0bada1-4359-4c2b-9dc8-d91b6ebd5686
-# ╟─00e1f4f0-6a6a-48dc-81d5-99f356aa3410
-# ╟─0f212d88-6b3a-4f96-8f05-d5b0f9943fe3
-# ╟─3c26c7f7-0d0c-4fe3-a071-ab76c7904659
-# ╟─fa38bb0f-c807-48b2-8bf2-33e457b53435
-# ╟─e879e854-a9c3-4762-9963-dfa8960f2dc5
-# ╟─66f233f2-76d8-45be-9aa2-831ff7269d96
-# ╟─d7069cdb-9a99-4194-93ea-03b5b82ddc89
-# ╟─4525cc1d-5338-400e-840a-47c069014ec6
-# ╟─0e350f3a-534e-4b7b-b473-9f3ebefb399e
-# ╟─fd2f6a01-9125-49fb-8615-b2e5deccd107
-# ╟─930fe232-f4ff-4331-9752-4e4ec0e66009
-# ╟─386334a4-60bf-47de-bf72-516f042b1407
-# ╟─9b0f3856-bee3-485e-9049-1a082c86e571
-# ╟─d5ba04de-e2e8-44af-9b60-6a47b782248e
-# ╟─396aa4fe-5d65-4852-9cb2-03c654201f6e
-# ╟─399a13c4-235b-40e7-8a2f-5affd889c014
-# ╟─f6c88e38-5f80-4ab7-afef-4f3249af8723
-# ╟─ff8a6018-dd86-4b09-a122-a72e0dfa7013
-# ╟─2c58b32c-e731-467b-b051-7063b3d3e341
-# ╟─2b7d684e-3db3-4966-9993-0446a7db7edb
-# ╟─0a465f30-6904-4195-830e-21cfb00fb63a
-# ╟─d7871e31-d841-4951-aec5-d6f2915d0ceb
-# ╟─9b738a7d-1a85-460b-9585-6ee4f32b41ae
-# ╟─afdb1375-ac94-4dcc-8fcb-c732e6029b83
-# ╟─1e2f1eff-3295-4eae-ac83-569e9f8211fd
-# ╟─67dfb1b3-4818-445f-bfe2-16d442506567
-# ╟─3da12a3d-bc26-4115-b769-78841499e434
-# ╟─64fda1f0-8fcf-4898-b3dd-883f151f69b3
-# ╟─76136e33-14f7-4c5e-84e9-970372c6c01a
-# ╟─1fce7934-0ce4-4059-ba8e-691f1c505f4d
-# ╟─e9eca322-1466-4d18-af62-28d3edd42cfc
-# ╟─68502224-d186-464b-8d35-1ce9ad0a9994
-# ╟─f017b433-05dd-48bc-b0b4-f70a39100b2d
-# ╟─533b3cd0-c1f6-4ecd-b196-4ed35bf77135
-# ╟─97e7f37b-9494-4ae9-a076-77b90a974a81
-# ╟─be85ba3b-5439-4cf3-bb14-d24d61a283c3
-# ╟─d1e89b59-bc6f-46fd-a7cd-126fad530916
-# ╟─f5ab2c06-0d7c-4d8a-84f0-b77c97a7438d
-# ╟─49d39360-3609-407c-bfee-c46e7485727a
-# ╟─61563dc2-ee4c-4a03-9b7d-44184be7240e
-# ╟─19d23d0a-6f44-4444-8597-cd2e65e3ad1f
-# ╟─c3717165-0646-433b-8e09-d406337a2f4c
-# ╟─9666bdc8-cbc0-4757-9bd8-a76477c252eb
-# ╟─ca9a233b-d3ca-4a76-a3d8-f29884ac9484
-# ╠═cbd6bb86-1845-4f51-bca3-59ec0e35f1af
-# ╟─e2e4ae4f-dcdc-4999-88f2-853378be859a
-# ╟─2be98f2a-57a2-4f53-ad53-b1c0e9e9aafa
-# ╠═8c7d7904-743d-44ed-bf50-b058e187b5ba
-# ╟─01c985a1-4d3d-4799-8e9e-5e25390a9fbb
-# ╠═eb0b2d77-b80e-43bc-b85b-86b1e38ccdd3
-# ╠═a22bc077-0e85-457b-80bc-8f9fa27b6852
-# ╠═9bdbdbf7-6a1a-4bde-a12d-2181c30571bb
-# ╠═1b738fec-65c4-46df-834f-55380b1db860
-# ╟─ceec9b81-6a43-4bb9-bb74-b309ef4c3037
-# ╟─4607856c-7472-4131-a2ee-29f7150f5cb4
-# ╠═bbb7263a-91e4-4a23-9e5f-416b6b7fcf6e
-# ╠═7a2987ef-d37e-4c7a-aaa8-8186694bea88
-# ╠═97369db9-1d27-4088-b1b4-f73434ce80ea
-# ╟─4cfe1c80-c67e-4dd3-825b-d893800d68c0
-# ╟─d7ba9e0c-5cfa-4176-adff-12cb8e20679b
-# ╠═82e78dc9-b89e-48d9-9f70-6f3238dfd196
-# ╟─34c053bf-0b4f-45c4-bb79-7e5e89a26060
-# ╠═768f8ffb-a08b-4498-97e4-1a3a866e69c7
-# ╟─8864b4d3-6a9f-4e7b-8cd6-ed32a0116f4a
-# ╠═aad5e227-67a5-49a0-a79d-24160d3ebe06
-# ╠═d6502bbe-ea58-471d-a748-d9c8f37ce61e
-# ╟─b3a260b6-eb31-43a0-9fd6-60a507984319
-# ╠═5ba3a0c1-6107-45a1-9b1d-5c323b9a7145
-# ╟─946d007d-abd7-4cd3-9789-e77b1ad6ebf4
-# ╠═45eb64c1-5af0-4987-ac1f-9d2b3dcb4c06
-# ╠═1b044783-0f5f-4321-abda-35e5b7ae67c4
-# ╠═6e3dab9c-2fbe-4705-995e-753014502ede
-# ╠═d51d7d61-e52f-4e42-9f52-ab31c8bf4746
-# ╠═28cfb49f-66b4-4cdf-8fcf-3f0019dff939
-# ╠═8737830d-6f35-416d-bf90-cc2fbf0a4b76
-# ╠═5d3bd48b-482b-43ed-84fb-42c2058cde74
+# ╠═bcf78560-f2c5-11ec-0dc5-23205a5b9b22
+# ╟─cb0b6283-0f49-4134-ae4e-8e83c178666a
+# ╟─80f254af-bbba-4203-83e0-359695ee0439
+# ╠═1c14aafa-60ac-43a5-9efc-6110a2e1051b
+# ╠═ef51988e-6669-4269-a5c7-3de9daba0504
+# ╠═bb405530-d56e-40ec-8547-93f66b30d497
+# ╠═3e79362b-8ff1-4918-87bf-b624d0281bd0
+# ╠═7e956d53-e5ae-4194-b563-3726356addf0
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
