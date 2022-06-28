@@ -8,9 +8,14 @@ using InteractiveUtils
 using DifferentialEquations, PlutoUI, TikzPictures, Unitful, UnitfulAstro, SpecialFunctions, QuadGK, CairoMakie, LaTeXStrings, DataFrames, DataFramesMeta, DelimitedFiles, Trapz, LsqFit, Interpolations, CSV, HDF5, Symbolics, Statistics
 
 # ╔═╡ 08df960b-fd82-43ba-a9dc-bf5e83af587e
+# ╠═╡ skip_as_script = true
+#=╠═╡
 TableOfContents(title="🌌 Model 019", depth=4)
+  ╠═╡ =#
 
 # ╔═╡ 3b1726c6-60c2-45be-932d-efa8d2ef23e0
+# ╠═╡ skip_as_script = true
+#=╠═╡
 Markdown.MD(
 	Markdown.Admonition(
 		"note", 
@@ -18,11 +23,17 @@ Markdown.MD(
 		[md"Model 019"]
 	)
 )
+  ╠═╡ =#
 
 # ╔═╡ 6173713c-92b0-43ec-8713-1cbf442aa1ce
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"# Description"
+  ╠═╡ =#
 
 # ╔═╡ a842b24e-8d26-41ab-9de3-91632aede893
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 
 ## Phases and notation
@@ -54,16 +65,25 @@ are the gas density, the gas density fraction, and the total density, of the SPH
 
 Notice that $z_f$ is not the metallicity as is commonly defined in the literature, where in general $z = \rho_z / \rho_g$. But, given that the stellar fraction (in the short times that are relevant for us) will always be very small, the difference is negligible.
 """
+  ╠═╡ =#
 
 # ╔═╡ 64787011-b5b8-42be-b6e4-37ebc5138b3e
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"## Relations between the phases"
+  ╠═╡ =#
 
 # ╔═╡ 76fe97bd-36c8-40d2-9b5a-0ea5059bd7c7
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 The following diagram shows the relation between the different phases,
 """
+  ╠═╡ =#
 
 # ╔═╡ 14c7f574-0623-4254-b8f7-97984d32351c
+# ╠═╡ skip_as_script = true
+#=╠═╡
 TikzPicture(
 	L"""
 		\node[box, white] (stars) {Stars};
@@ -97,7 +117,7 @@ TikzPicture(
         		rectangle,
         		rounded corners,
         		draw=black, 
-        		very thick,
+        		thick,
         		text width=4em,
         		minimum height=2em,
         		text centered,
@@ -114,23 +134,32 @@ TikzPicture(
 				rectangle,
 				draw,
 				inner sep=0pt,
-				fit=#1,
+				fit=\\#1,
 				thick, 
 				rounded corners,
 			},
 		}
 	""",
 )
+  ╠═╡ =#
 
 # ╔═╡ bc9ab101-7cc3-4baa-b83d-ce546f6b576d
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"## Equations"
+  ╠═╡ =#
 
 # ╔═╡ 047bbd39-9cf9-4bd7-b38e-16aa505b0b08
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 Given the previous interaction diagram we have a system of five first-order ODEs:
 """
+  ╠═╡ =#
 
 # ╔═╡ 2fe0dc4c-da44-4fc8-bef8-1fa615a0fe4a
+# ╠═╡ skip_as_script = true
+#=╠═╡
 TikzPicture(
 	L"""
 	\node[white] {
@@ -155,8 +184,11 @@ TikzPicture(
 		\\definecolor{orange}{HTML}{F39C12}
 	""",
 )
+  ╠═╡ =#
 
 # ╔═╡ eaf272c7-4162-4a9a-92e3-9835c6158394
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 where
 
@@ -180,8 +212,11 @@ $\begin{equation}
     \sum_j \frac{\mathrm{d}}{\mathrm{d}t}j(t) = 0 \, , \qquad j = i_f, a_f, m_f, s_f \, .
 \end{equation}$
 """
+  ╠═╡ =#
 
 # ╔═╡ ac553b12-4857-4cc1-8ea2-fe9e8863b429
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 
 ## Star formation rate
@@ -201,11 +236,17 @@ $\begin{equation}
 
 where $\tau_S$ is the characteristic timescale for star formation.
 """
+  ╠═╡ =#
 
 # ╔═╡ dc6fd12b-c821-4e20-a896-25c8aab9df94
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"## Time parameters"
+  ╠═╡ =#
 
 # ╔═╡ 1d27ec35-65ca-4c94-9e8d-54d1c11e759f
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 
 ### Star formation time
@@ -244,6 +285,7 @@ $\begin{equation}
 
 We will use $\kappa = 1$, as the simplest choice for the free parameter.
 """
+  ╠═╡ =#
 
 # ╔═╡ 68732d91-805a-4663-9166-f8483213a8d2
 begin
@@ -255,6 +297,8 @@ end;
 C₁ = (κ / ϵff) * sqrt(3π / 32u"G") |> UnitfulAstro.Gyr * UnitfulAstro.Msun^(1/2) * UnitfulAstro.pc^(-3/2)
 
 # ╔═╡ 6503fb74-c34f-40db-afb4-7affd4ceef88
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 
 ### Recombination time
@@ -294,6 +338,7 @@ $\begin{equation}
 	C_2 = \frac{m_p}{\alpha_B(10^4 \, K)} \, .
 \end{equation}$
 """
+  ╠═╡ =#
 
 # ╔═╡ f6251e55-f88b-4f53-8449-e30b0bf9ae44
 αB = 2.59e-13u"cm^3 * s^-1";
@@ -302,6 +347,8 @@ $\begin{equation}
 C₂ = u"mp" / αB |> UnitfulAstro.Gyr * UnitfulAstro.Msun * UnitfulAstro.pc^(-3)
 
 # ╔═╡ 4a7eb24b-0874-49a3-9b08-4ffb6a7f0ce7
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 
 ### Condensation time
@@ -341,6 +388,7 @@ $\begin{align}
 Z = \frac{\rho_z}{\rho_g} = \frac{z_f \, \rho}{\rho_g} \approx z_f \, .
 \end{align}$
 """
+  ╠═╡ =#
 
 # ╔═╡ f2a6676f-457a-476a-9ce7-c336aa9bf47f
 begin
@@ -352,6 +400,8 @@ end;
 C₃ = Zsun * u"mp" / (2 * σv) |> UnitfulAstro.Gyr * UnitfulAstro.Msun * UnitfulAstro.pc^(-3)
 
 # ╔═╡ 3767c7f9-a0bc-467a-a20a-5e5a266111c7
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 
 ## Mass quotients
@@ -377,25 +427,34 @@ $\begin{align}
 
 where $\dot{N}_\mathrm{ion}$ is the number of ionizing photons produced per unit time (between $0$ and $912\,Å$), $\dot{N}_\mathrm{diss}$ the number of photodissociating photons produced per unit time (in the Lyman–Werner band, $912\,Å$ to $1107\,Å$), and $f_\mathrm{ion}$ and $f_\mathrm{diss}$ are the factors that convert units (proton mass into solar mass) and take into account that the reaction may not be $100\%$ efficient.
 """
+  ╠═╡ =#
 
 # ╔═╡ 127e1dfa-62d8-4721-adc8-cb24c6e9cdcc
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 For the ionization reaction, each photon will produce one proton, and we assume $100\%$ efficiency.
 """
+  ╠═╡ =#
 
 # ╔═╡ 005957d6-6f27-4abc-a872-45cf6a032b9f
 f_ion = ustrip(1.0u"mp" |> u"Msun")
 
 # ╔═╡ 0fcd2ad5-440c-4128-be21-1f8a354074fe
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 For the molecule dissociation reaction, we have to consider the numerical factor given by [Draine1996](https://doi.org/10.1086/177689), where it is shown that dust grains may absorb up to $\sim \! 60$ percent of the photons capable of dissociating hydrogen molecules, and a large fraction of the remaining photons excite different rotational and vibrational states, reducing their dissociation probability to $\sim \! 15$ percent, so we end up with an efficiency factor of $0.4 \times 0.15 = 0.06$.
 $f_\mathrm{diss}$ has an extra factor of two with respect to $f_\mathrm{ion}$ because each photon contributes with two protons (from the dissociated molecule) to the atomic gas.
 """
+  ╠═╡ =#
 
 # ╔═╡ f8b02d00-ff30-480e-b5eb-e150e4678c95
 f_diss = 0.4 * 0.15 * 2.0 * ustrip(1.0u"mp" |> u"Msun")
 
 # ╔═╡ 44c88ad8-a8c3-45e3-9a56-be3ce5bf66fa
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 The number of photons can be computed from $Q(t', Z)$, which is defined as the number of photons produced by a stellar population of one solar mass, of age $t'$ and metallicity $Z$, per unit time. So, we have the relation
 
@@ -434,6 +493,7 @@ The luminosity will not only depend on the age and metallicity of the population
 
 Using the values from PopStar by [Mollá2009](https://doi.org/10.1111/j.1365-2966.2009.15160.x) we compute a table of $Q_\mathrm{ion}$ and $Q_\mathrm{diss}$ for six IMFs ([Salpeter1955](https://doi.org/10.1086/145971) in two mass ranges, $0.85\,\mathrm{M}_\odot$ to $120\,\mathrm{M}_\odot$ and $0.15\,\mathrm{M}_\odot$ to $100\,\mathrm{M}_\odot$, [Kroupa2001](https://doi.org/10.1046/j.1365-8711.2001.04022.x), [Ferrini1990](https://ui.adsabs.harvard.edu/abs/1990A%26A...231..391F) and [Chabrier2003](https://doi.org/10.1086/374879)), six metallicities (0.0001, 0.0004, 0.004, 0.008, 0.02, 0.05) and for ages between $0.1\,\mathrm{Myr}$ and $15\,\mathrm{Gyr}$.
 """
+  ╠═╡ =#
 
 # ╔═╡ 448e1dee-4628-4c14-9d6f-dc165b2e826e
 begin
@@ -606,12 +666,18 @@ for (name, imf) in zip(col_names[2:end], Q_imfs)
 end
 
 # ╔═╡ 7788b98a-5bec-4b6d-82d9-2c272e2255a7
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""### Ionization efficiency of Hydrogen atoms ($\eta_\mathrm{ion}$)"""
+  ╠═╡ =#
 
 # ╔═╡ 7af2d4a6-a304-404d-8cbe-eeddb80beba6
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 Now that we have all the $Q_\mathrm{ion}$ values we will integrate them (up to the maximum  stellar age we have data for ~$15 \, \mathrm{Gyr}$) for each IMF and each value of $Z$, resulting in the following table
 """
+  ╠═╡ =#
 
 # ╔═╡ aeb72f0e-2252-486a-b79b-9d8cc6e5f962
 begin
@@ -633,6 +699,8 @@ begin
 end
 
 # ╔═╡ e83337bd-8c2d-4a9a-bd8b-7f8201cf67ad
+# ╠═╡ skip_as_script = true
+#=╠═╡
 let
 	f = Figure()
 	ax = Axis(
@@ -659,14 +727,21 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ b8beaaa6-b018-4ca8-b19d-a918dc761707
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""#### Ionization efficiency as a function of the maximum stellar age"""
+  ╠═╡ =#
 
 # ╔═╡ 43eb3af9-86c5-49e9-af0e-3270e3df493e
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 At fix metallicity (Z = 0.008).
 """
+  ╠═╡ =#
 
 # ╔═╡ 05d22c2d-f76f-4931-8e21-6d31e9ab178e
 begin
@@ -691,6 +766,8 @@ begin
 end
 
 # ╔═╡ ea0bada1-4359-4c2b-9dc8-d91b6ebd5686
+# ╠═╡ skip_as_script = true
+#=╠═╡
 let
 	f = Figure()
 	ax = Axis(
@@ -719,11 +796,15 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 00e1f4f0-6a6a-48dc-81d5-99f356aa3410
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 At fix IMF (Kroupa et al. 2001).
 """
+  ╠═╡ =#
 
 # ╔═╡ 0f212d88-6b3a-4f96-8f05-d5b0f9943fe3
 begin
@@ -745,6 +826,8 @@ begin
 end
 
 # ╔═╡ 3c26c7f7-0d0c-4fe3-a071-ab76c7904659
+# ╠═╡ skip_as_script = true
+#=╠═╡
 let
 	f = Figure()
 	ax = Axis(
@@ -773,14 +856,23 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ fa38bb0f-c807-48b2-8bf2-33e457b53435
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""### Approximations of $\eta_\mathrm{ion}$"""
+  ╠═╡ =#
 
 # ╔═╡ e879e854-a9c3-4762-9963-dfa8960f2dc5
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""#### Fitting"""
+  ╠═╡ =#
 
 # ╔═╡ 66f233f2-76d8-45be-9aa2-831ff7269d96
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 Given that the result of $\eta_\mathrm{ion}$ for a given IMF is a function of Z, we can fit a quadratic function to the log-log data
 
@@ -789,6 +881,7 @@ $\begin{equation}
 \end{equation}$
 where $p_1$, $p_2$ and $p_3$ are the parameters to be fitted.
 """
+  ╠═╡ =#
 
 # ╔═╡ d7069cdb-9a99-4194-93ea-03b5b82ddc89
 # Fitting model
@@ -800,7 +893,10 @@ begin
 end;
 
 # ╔═╡ 4525cc1d-5338-400e-840a-47c069014ec6
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""The fitted parameters for each IMF are"""
+  ╠═╡ =#
 
 # ╔═╡ 0e350f3a-534e-4b7b-b473-9f3ebefb399e
 begin
@@ -815,6 +911,8 @@ begin
 end
 
 # ╔═╡ fd2f6a01-9125-49fb-8615-b2e5deccd107
+# ╠═╡ skip_as_script = true
+#=╠═╡
 let
 	f = Figure()
 	ax = Axis(
@@ -850,12 +948,19 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 930fe232-f4ff-4331-9752-4e4ec0e66009
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""#### Interpolation"""
+  ╠═╡ =#
 
 # ╔═╡ 386334a4-60bf-47de-bf72-516f042b1407
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""Alternatively we can interpolate linearly between the known values, setting a flat constant (equal to the las know value) for metallicities outside the range."""
+  ╠═╡ =#
 
 # ╔═╡ 9b0f3856-bee3-485e-9049-1a082c86e571
 # Interpolation
@@ -865,6 +970,8 @@ itp_ion = Dict(
 );
 
 # ╔═╡ d5ba04de-e2e8-44af-9b60-6a47b782248e
+# ╠═╡ skip_as_script = true
+#=╠═╡
 let
 	f = Figure()
 	ax = Axis(
@@ -902,14 +1009,21 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 396aa4fe-5d65-4852-9cb2-03c654201f6e
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""### Photodissociation efficiency of $\mathrm{H}_2$ molecules ($\eta_\mathrm{diss}$)"""
+  ╠═╡ =#
 
 # ╔═╡ 399a13c4-235b-40e7-8a2f-5affd889c014
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 As we did for $\eta_\mathrm{ion}$, we integrate the $Q_\mathrm{diss}$ values (up to the maximum  stellar age we have data for ~$15 \, \mathrm{Gyr}$) for each IMF and each value of $Z$, resulting in the following table
 """
+  ╠═╡ =#
 
 # ╔═╡ f6c88e38-5f80-4ab7-afef-4f3249af8723
 begin
@@ -931,6 +1045,8 @@ begin
 end
 
 # ╔═╡ ff8a6018-dd86-4b09-a122-a72e0dfa7013
+# ╠═╡ skip_as_script = true
+#=╠═╡
 let
 	f = Figure()
 	ax = Axis(
@@ -958,14 +1074,19 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 2c58b32c-e731-467b-b051-7063b3d3e341
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""#### Photodissociation efficiency as a function of the maximum stellar age"""
+  ╠═╡ =#
 
 # ╔═╡ 2b7d684e-3db3-4966-9993-0446a7db7edb
-md"""
-At fix metallicity (Z = 0.008).
-"""
+# ╠═╡ skip_as_script = true
+#=╠═╡
+md"""At fix metallicity (Z = 0.008)"""
+  ╠═╡ =#
 
 # ╔═╡ 0a465f30-6904-4195-830e-21cfb00fb63a
 begin
@@ -987,6 +1108,8 @@ begin
 end
 
 # ╔═╡ d7871e31-d841-4951-aec5-d6f2915d0ceb
+# ╠═╡ skip_as_script = true
+#=╠═╡
 let
 	f = Figure()
 	ax = Axis(
@@ -1015,11 +1138,15 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 9b738a7d-1a85-460b-9585-6ee4f32b41ae
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 At fix IMF ([Kroupa et al. 2001](https://doi.org/10.1046/j.1365-8711.2001.04022.x)).
 """
+  ╠═╡ =#
 
 # ╔═╡ afdb1375-ac94-4dcc-8fcb-c732e6029b83
 begin
@@ -1041,6 +1168,8 @@ begin
 end
 
 # ╔═╡ 1e2f1eff-3295-4eae-ac83-569e9f8211fd
+# ╠═╡ skip_as_script = true
+#=╠═╡
 let
 	f = Figure()
 	ax = Axis(
@@ -1069,15 +1198,25 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 67dfb1b3-4818-445f-bfe2-16d442506567
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""### Approximations of $\eta_\mathrm{diss}$"""
+  ╠═╡ =#
 
 # ╔═╡ 3da12a3d-bc26-4115-b769-78841499e434
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""#### Fitting"""
+  ╠═╡ =#
 
 # ╔═╡ 64fda1f0-8fcf-4898-b3dd-883f151f69b3
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""Using the same fitting function as for $\eta_\mathrm{ion}$, we get"""
+  ╠═╡ =#
 
 # ╔═╡ 76136e33-14f7-4c5e-84e9-970372c6c01a
 begin
@@ -1092,6 +1231,8 @@ begin
 end
 
 # ╔═╡ 1fce7934-0ce4-4059-ba8e-691f1c505f4d
+# ╠═╡ skip_as_script = true
+#=╠═╡
 let
 	f = Figure()
 	ax = Axis(
@@ -1127,9 +1268,13 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ e9eca322-1466-4d18-af62-28d3edd42cfc
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""#### Interpolation"""
+  ╠═╡ =#
 
 # ╔═╡ 68502224-d186-464b-8d35-1ce9ad0a9994
 # Interpolation
@@ -1139,6 +1284,8 @@ itp_diss = Dict(
 );
 
 # ╔═╡ f017b433-05dd-48bc-b0b4-f70a39100b2d
+# ╠═╡ skip_as_script = true
+#=╠═╡
 let
 	f = Figure()
 	ax = Axis(
@@ -1176,8 +1323,11 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 533b3cd0-c1f6-4ecd-b196-4ed35bf77135
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 
 ## Mass recycling
@@ -1208,6 +1358,7 @@ Some traditional choices for the masses are $m_\mathrm{ir} = 8 \, M_\odot$, $m_\
 The two previous equations were taken from [_Nucleosynthesis and Chemical Evolution of Galaxies_](https://doi.org/10.1017/CBO9780511812170) by Bernard Pagel (eq. 7.24 and 7.26), and [_Chemical Evolution
 of Galaxies_](https://doi.org/10.1007/978-94-010-0967-6) by Francesca Matteucci (eq. 3.9 and 3.14).
 """
+  ╠═╡ =#
 
 # ╔═╡ 97e7f37b-9494-4ae9-a076-77b90a974a81
 begin
@@ -1302,26 +1453,43 @@ begin
 end
 
 # ╔═╡ d1e89b59-bc6f-46fd-a7cd-126fad530916
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 With the choice $m_\mathrm{low} = 0.08 \, M_\odot$, $m_\mathrm{high} = 100 \, M_\odot$, and $m_\mathrm{ir} = 8 \, M_\odot$ we get the following $R$ and $Z_\mathrm{SN}$,
 """
+  ╠═╡ =#
 
 # ╔═╡ 49d39360-3609-407c-bfee-c46e7485727a
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 Averaging over stellar metallicity (`s_Z` column), and varying $m_\mathrm{high}$ between $30 \, M_\odot$ and $100 \, M_\odot$, we get the following plots, where the error bars indicate the standard deviation for varying the stellar metallicity.
 We choose for the plots the [Chabrier2003](https://doi.org/10.1086/374879) IMF and the [Portinari1998](https://ui.adsabs.harvard.edu/abs/1998A&A...334..505P) yield model.
 """
+  ╠═╡ =#
 
 # ╔═╡ 9666bdc8-cbc0-4757-9bd8-a76477c252eb
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"# Implementation"
+  ╠═╡ =#
 
 # ╔═╡ ca9a233b-d3ca-4a76-a3d8-f29884ac9484
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"## Constants"
+  ╠═╡ =#
 
 # ╔═╡ e2e4ae4f-dcdc-4999-88f2-853378be859a
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"## Equations"
+  ╠═╡ =#
 
 # ╔═╡ 2be98f2a-57a2-4f53-ad53-b1c0e9e9aafa
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 Each equation has units of $\mathrm{Gyr}^{-1}$, the parameter $\rho_0$ has to have units of $\mathrm{M_\odot} \, \mathrm{pc}^{-3}$, and the parameter $g_0$ should be dimensionless.
 
@@ -1336,21 +1504,37 @@ where ρ = i(t) + a(t) + m(t) + s(t)
 ```   
 
 """
+  ╠═╡ =#
 
 # ╔═╡ 01c985a1-4d3d-4799-8e9e-5e25390a9fbb
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""## Jacobian"""
+  ╠═╡ =#
 
 # ╔═╡ ceec9b81-6a43-4bb9-bb74-b309ef4c3037
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"# Functions"
+  ╠═╡ =#
 
 # ╔═╡ 4607856c-7472-4131-a2ee-29f7150f5cb4
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"## Integration"
+  ╠═╡ =#
 
 # ╔═╡ 4cfe1c80-c67e-4dd3-825b-d893800d68c0
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"## Density PDF"
+  ╠═╡ =#
 
 # ╔═╡ d7ba9e0c-5cfa-4176-adff-12cb8e20679b
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"### Parameters for the density PDF"
+  ╠═╡ =#
 
 # ╔═╡ 82e78dc9-b89e-48d9-9f70-6f3238dfd196
 Base.@kwdef struct Params
@@ -1403,7 +1587,10 @@ function mass_fraction(
 end;
 
 # ╔═╡ 34c053bf-0b4f-45c4-bb79-7e5e89a26060
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"### Density PDF by Burkhart et al. (2018)"
+  ╠═╡ =#
 
 # ╔═╡ 768f8ffb-a08b-4498-97e4-1a3a866e69c7
 function pBurkhart2018(s, params)
@@ -1427,7 +1614,10 @@ function pBurkhart2018(s, params)
 end;
 
 # ╔═╡ 8864b4d3-6a9f-4e7b-8cd6-ed32a0116f4a
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"### Density PDF by Krumholz et al. (2005)"
+  ╠═╡ =#
 
 # ╔═╡ aad5e227-67a5-49a0-a79d-24160d3ebe06
 function pKrumholz2005(s, params)
@@ -1443,6 +1633,8 @@ function pKrumholz2005(s, params)
 end;
 
 # ╔═╡ b3a260b6-eb31-43a0-9fd6-60a507984319
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"""
 ## Initial mass functions (IMF)
 
@@ -1464,6 +1656,7 @@ where it is generally assumed that $[m] = M_\odot$ and $A$ is the normalization 
 
 The following implementations don't have a specific choice for normalization (when posible $A = 1$), so they have to be multiplied by a constant if one wants a given value of $M$.
 """
+  ╠═╡ =#
 
 # ╔═╡ 5ba3a0c1-6107-45a1-9b1d-5c323b9a7145
 begin
@@ -1566,7 +1759,10 @@ begin
 end;
 
 # ╔═╡ 946d007d-abd7-4cd3-9789-e77b1ad6ebf4
+# ╠═╡ skip_as_script = true
+#=╠═╡
 md"## Auxiliary functions"
+  ╠═╡ =#
 
 # ╔═╡ 45eb64c1-5af0-4987-ac1f-9d2b3dcb4c06
 deltas(v::Vector)::Vector{Float64} = [0.0, [v[i] - v[i - 1] for i in 2:length(v)]...];
@@ -2099,7 +2295,7 @@ function fractions(
 		# Integration using a single density value: ρ₀
 		#######################################################
 		
-		sol = integrate_model(
+		sol = full_integrate_model(
 			init_cond, 
 			ustrip.(u"Gyr", t_span),
 			[
@@ -2121,7 +2317,7 @@ function fractions(
 		mass_f, points = mass_fraction(ρ_PDF, params, log_var)
 
 		for i in 1:params.divisions	
-	        sol = integrate_model(
+	        sol = full_integrate_model(
 				init_cond, 
 				ustrip.(u"Gyr", t_span), 
 				[
@@ -2212,9 +2408,9 @@ uuid = "6e696c72-6542-2067-7265-42206c756150"
 version = "1.1.4"
 
 [[deps.AbstractTrees]]
-git-tree-sha1 = "0b9eed2ed6e139eaacd3c91733330d44114859c1"
+git-tree-sha1 = "5c0b629df8a5566a06f5fef5100b53ea56e465a0"
 uuid = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
-version = "0.4.1"
+version = "0.4.2"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra"]
@@ -2244,9 +2440,9 @@ version = "0.2.0"
 
 [[deps.ArrayInterface]]
 deps = ["ArrayInterfaceCore", "Compat", "IfElse", "LinearAlgebra", "Static"]
-git-tree-sha1 = "d956c0606a3bc1112a1f99a8b2309b79558d9921"
+git-tree-sha1 = "1d062b8ab719670c16024105ace35e6d32988d4f"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "6.0.17"
+version = "6.0.18"
 
 [[deps.ArrayInterfaceCore]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
@@ -2262,15 +2458,21 @@ version = "0.2.0"
 
 [[deps.ArrayInterfaceOffsetArrays]]
 deps = ["ArrayInterface", "OffsetArrays", "Static"]
-git-tree-sha1 = "7dce0e2846e7496622f5d2742502d7e029693458"
+git-tree-sha1 = "c49f6bad95a30defff7c637731f00934c7289c50"
 uuid = "015c0d05-e682-4f19-8f0a-679ce4c54826"
-version = "0.1.5"
+version = "0.1.6"
 
 [[deps.ArrayInterfaceStaticArrays]]
-deps = ["Adapt", "ArrayInterface", "LinearAlgebra", "Static", "StaticArrays"]
-git-tree-sha1 = "d7dc30474e73173a990eca86af76cae8790fa9f2"
+deps = ["Adapt", "ArrayInterface", "ArrayInterfaceStaticArraysCore", "LinearAlgebra", "Static", "StaticArrays"]
+git-tree-sha1 = "efb000a9f643f018d5154e56814e338b5746c560"
 uuid = "b0d46f97-bff5-4637-a19a-dd75974142cd"
-version = "0.1.2"
+version = "0.1.4"
+
+[[deps.ArrayInterfaceStaticArraysCore]]
+deps = ["Adapt", "ArrayInterfaceCore", "LinearAlgebra", "StaticArraysCore"]
+git-tree-sha1 = "a1e2cf6ced6505cbad2490532388683f1e88c3ed"
+uuid = "dd5226c6-a4d4-4bc7-8575-46859f9c95b9"
+version = "0.1.0"
 
 [[deps.ArrayLayouts]]
 deps = ["FillArrays", "LinearAlgebra", "SparseArrays"]
@@ -2401,9 +2603,9 @@ version = "0.1.3"
 
 [[deps.CloseOpenIntervals]]
 deps = ["ArrayInterface", "Static"]
-git-tree-sha1 = "16cfdcff2db5e6e6b365ae3689b8694741f00a43"
+git-tree-sha1 = "5522c338564580adf5d58d91e43a55db0fa5fb39"
 uuid = "fb6a15b2-703c-40df-9091-08a04967cfa9"
-version = "0.1.9"
+version = "0.1.10"
 
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -2419,9 +2621,9 @@ version = "0.4.0"
 
 [[deps.ColorSchemes]]
 deps = ["ColorTypes", "ColorVectorSpace", "Colors", "FixedPointNumbers", "Random"]
-git-tree-sha1 = "7297381ccb5df764549818d9a7d57e45f1057d30"
+git-tree-sha1 = "1fd869cc3875b57347f7027521f561cf46d1fcd8"
 uuid = "35d6a980-a343-548e-a6ea-1d62b119f2f4"
-version = "3.18.0"
+version = "3.19.0"
 
 [[deps.ColorTypes]]
 deps = ["FixedPointNumbers", "Random"]
@@ -2555,9 +2757,9 @@ version = "0.4.0"
 
 [[deps.DiffEqBase]]
 deps = ["ArrayInterfaceCore", "ChainRulesCore", "DataStructures", "Distributions", "DocStringExtensions", "FastBroadcast", "ForwardDiff", "FunctionWrappers", "LinearAlgebra", "Logging", "MuladdMacro", "NonlinearSolve", "Parameters", "Printf", "RecursiveArrayTools", "Reexport", "Requires", "SciMLBase", "Setfield", "SparseArrays", "StaticArrays", "Statistics", "ZygoteRules"]
-git-tree-sha1 = "6df88c24248cd66e56ab0c073c4f8f24cd3fea29"
+git-tree-sha1 = "ab123ea2e24d20140b284413bff63e80ea976626"
 uuid = "2b5f629d-d688-5b77-993f-72d75c75574e"
-version = "6.91.6"
+version = "6.92.0"
 
 [[deps.DiffEqCallbacks]]
 deps = ["DataStructures", "DiffEqBase", "ForwardDiff", "LinearAlgebra", "NLsolve", "Parameters", "RecipesBase", "RecursiveArrayTools", "SciMLBase", "StaticArrays"]
@@ -2688,9 +2890,9 @@ version = "3.3.10+0"
 
 [[deps.FastBroadcast]]
 deps = ["ArrayInterface", "ArrayInterfaceCore", "LinearAlgebra", "Polyester", "Static", "StrideArraysCore"]
-git-tree-sha1 = "81765322b2960b7c92f9280b00956cb8d645d3f7"
+git-tree-sha1 = "21cdeff41e5a1822c2acd7fc7934c5f450588e00"
 uuid = "7034ab61-46d4-4ed7-9d0f-46aef9175898"
-version = "0.2.0"
+version = "0.2.1"
 
 [[deps.FastClosures]]
 git-tree-sha1 = "acebe244d53ee1b461970f8910c235b259e772ef"
@@ -2910,9 +3112,9 @@ version = "0.9.4"
 
 [[deps.ImageIO]]
 deps = ["FileIO", "IndirectArrays", "JpegTurbo", "LazyModules", "Netpbm", "OpenEXR", "PNGFiles", "QOI", "Sixel", "TiffImages", "UUIDs"]
-git-tree-sha1 = "d9a03ffc2f6650bd4c831b285637929d99a4efb5"
+git-tree-sha1 = "342f789fd041a55166764c351da1710db97ce0e0"
 uuid = "82e4d734-157c-48bb-816b-45c225c6df19"
-version = "0.6.5"
+version = "0.6.6"
 
 [[deps.Imath_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2937,9 +3139,9 @@ version = "0.3.1"
 
 [[deps.InlineStrings]]
 deps = ["Parsers"]
-git-tree-sha1 = "61feba885fac3a407465726d0c330b3055df897f"
+git-tree-sha1 = "a8671d5c9670a62cb36b7d44c376bdb09181aa26"
 uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
-version = "1.1.2"
+version = "1.1.3"
 
 [[deps.IntegerMathUtils]]
 git-tree-sha1 = "f366daebdfb079fd1fe4e3d560f99a0c892e15bc"
@@ -3078,10 +3280,10 @@ uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 version = "1.3.0"
 
 [[deps.LabelledArrays]]
-deps = ["ArrayInterface", "ArrayInterfaceStaticArrays", "ChainRulesCore", "LinearAlgebra", "MacroTools", "StaticArrays"]
-git-tree-sha1 = "a63da17ff71f41a1f818e0e1d3c02a32cf4c51f7"
+deps = ["ArrayInterfaceCore", "ArrayInterfaceStaticArrays", "ChainRulesCore", "LinearAlgebra", "MacroTools", "PreallocationTools", "RecursiveArrayTools", "StaticArrays"]
+git-tree-sha1 = "b86aeff13358dfef82efd9f66a9d44705c9a4746"
 uuid = "2ee39098-c373-598a-b85f-a56591580800"
-version = "1.10.2"
+version = "1.11.1"
 
 [[deps.Latexify]]
 deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "Printf", "Requires"]
@@ -3204,9 +3406,9 @@ uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[deps.LoopVectorization]]
 deps = ["ArrayInterface", "ArrayInterfaceCore", "ArrayInterfaceOffsetArrays", "ArrayInterfaceStaticArrays", "CPUSummary", "ChainRulesCore", "CloseOpenIntervals", "DocStringExtensions", "ForwardDiff", "HostCPUFeatures", "IfElse", "LayoutPointers", "LinearAlgebra", "OffsetArrays", "PolyesterWeave", "SIMDDualNumbers", "SIMDTypes", "SLEEFPirates", "SpecialFunctions", "Static", "ThreadingUtilities", "UnPack", "VectorizationBase"]
-git-tree-sha1 = "5ea9a0aaf5ded7f0b6e43c96ca1793e60c96af93"
+git-tree-sha1 = "7bf979d315193570cc2b79b4d2eb4595d68b9352"
 uuid = "bdcacae8-1622-11e9-2a5c-532679323890"
-version = "0.12.118"
+version = "0.12.119"
 
 [[deps.LsqFit]]
 deps = ["Distributions", "ForwardDiff", "LinearAlgebra", "NLSolversBase", "OptimBase", "Random", "StatsBase"]
@@ -3391,9 +3593,9 @@ uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "ab05aa4cc89736e95915b01e7279e61b1bfe33b8"
+git-tree-sha1 = "9a36165cf84cff35851809a40a928e1103702013"
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "1.1.14+0"
+version = "1.1.16+0"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
@@ -3426,9 +3628,9 @@ version = "1.4.1"
 
 [[deps.OrdinaryDiffEq]]
 deps = ["Adapt", "ArrayInterface", "ArrayInterfaceGPUArrays", "ArrayInterfaceStaticArrays", "DataStructures", "DiffEqBase", "DocStringExtensions", "ExponentialUtilities", "FastBroadcast", "FastClosures", "FiniteDiff", "ForwardDiff", "LinearAlgebra", "LinearSolve", "Logging", "LoopVectorization", "MacroTools", "MuladdMacro", "NLsolve", "NonlinearSolve", "Polyester", "PreallocationTools", "RecursiveArrayTools", "Reexport", "SciMLBase", "SparseArrays", "SparseDiffTools", "StaticArrays", "UnPack"]
-git-tree-sha1 = "5a27d2c7a645935998a9851bdc45c3689e897193"
+git-tree-sha1 = "062f233b13f04aa942bd3ca831791280f57874a3"
 uuid = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
-version = "6.17.0"
+version = "6.18.1"
 
 [[deps.PCRE_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -3438,9 +3640,9 @@ version = "8.44.0+0"
 
 [[deps.PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
-git-tree-sha1 = "7f4869861f8dac4990d6808b66b57e5a425cfd99"
+git-tree-sha1 = "ca433b9e2f5ca3a0ce6702a032fce95a3b6e1e48"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
-version = "0.11.13"
+version = "0.11.14"
 
 [[deps.PNGFiles]]
 deps = ["Base64", "CEnum", "ImageCore", "IndirectArrays", "OffsetArrays", "libpng_jll"]
@@ -3496,9 +3698,9 @@ version = "0.1.1"
 
 [[deps.PlotUtils]]
 deps = ["ColorSchemes", "Colors", "Dates", "Printf", "Random", "Reexport", "Statistics"]
-git-tree-sha1 = "bb16469fd5224100e422f0b027d26c5a25de1200"
+git-tree-sha1 = "9888e59493658e476d3073f1ce24348bdc086660"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
-version = "1.2.0"
+version = "1.3.0"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
@@ -3514,9 +3716,9 @@ version = "0.4.1"
 
 [[deps.Polyester]]
 deps = ["ArrayInterface", "BitTwiddlingConvenienceFunctions", "CPUSummary", "IfElse", "ManualMemory", "PolyesterWeave", "Requires", "Static", "StrideArraysCore", "ThreadingUtilities"]
-git-tree-sha1 = "bfd5fb3376bc084d202c717bbba8c94696755d87"
+git-tree-sha1 = "97bbf8dc886d67ff0dd1f56cfc0ee18b7bb7f8ce"
 uuid = "f517fe37-dbe3-4b94-8317-1923a5111588"
-version = "0.6.12"
+version = "0.6.13"
 
 [[deps.PolyesterWeave]]
 deps = ["BitTwiddlingConvenienceFunctions", "CPUSummary", "IfElse", "Static", "ThreadingUtilities"]
@@ -3548,10 +3750,10 @@ uuid = "85a6dd25-e78a-55b7-8502-1745935b8125"
 version = "0.2.4"
 
 [[deps.PreallocationTools]]
-deps = ["Adapt", "ArrayInterfaceCore", "ForwardDiff", "LabelledArrays"]
-git-tree-sha1 = "77266c25ab9d48e31ef167eae936e8f6fa0e4754"
+deps = ["Adapt", "ArrayInterfaceCore", "ForwardDiff"]
+git-tree-sha1 = "ba66bf03b84ca3bd0a26aa2bbe96cd9df2f4f9b9"
 uuid = "d236fae5-4411-538c-8e31-a6e3d9e00b46"
-version = "0.3.2"
+version = "0.4.0"
 
 [[deps.Preferences]]
 deps = ["TOML"]
@@ -3567,9 +3769,9 @@ version = "1.3.1"
 
 [[deps.Primes]]
 deps = ["IntegerMathUtils"]
-git-tree-sha1 = "747f4261ebe38a2bc6abf0850ea8c6d9027ccd07"
+git-tree-sha1 = "311a2aa90a64076ea0fac2ad7492e914e6feeb81"
 uuid = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
-version = "0.5.2"
+version = "0.5.3"
 
 [[deps.Printf]]
 deps = ["Unicode"]
@@ -3631,10 +3833,10 @@ uuid = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 version = "1.2.1"
 
 [[deps.RecursiveArrayTools]]
-deps = ["Adapt", "ArrayInterfaceCore", "ArrayInterfaceStaticArrays", "ChainRulesCore", "DocStringExtensions", "FillArrays", "GPUArraysCore", "LinearAlgebra", "RecipesBase", "StaticArrays", "Statistics", "ZygoteRules"]
-git-tree-sha1 = "de1d261ff688a68f296185085aaecf99bc039d80"
+deps = ["Adapt", "ArrayInterfaceCore", "ArrayInterfaceStaticArraysCore", "ChainRulesCore", "DocStringExtensions", "FillArrays", "GPUArraysCore", "LinearAlgebra", "RecipesBase", "StaticArraysCore", "Statistics", "ZygoteRules"]
+git-tree-sha1 = "7ddd4f1ac52f9cc1b784212785f86a75602a7e4b"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
-version = "2.30.0"
+version = "2.31.0"
 
 [[deps.RecursiveFactorization]]
 deps = ["LinearAlgebra", "LoopVectorization", "Polyester", "StrideArraysCore", "TriangularSolve"]
@@ -3716,15 +3918,15 @@ version = "0.6.33"
 
 [[deps.ScanByte]]
 deps = ["Libdl", "SIMD"]
-git-tree-sha1 = "c49318f1b9ca3d927ae576d323fa6f724d01ba53"
+git-tree-sha1 = "8c3e2c64dac132efa8828b1b045a47cbf0881def"
 uuid = "7b38b023-a4d7-4c5e-8d43-3f3097f304eb"
-version = "0.3.1"
+version = "0.3.2"
 
 [[deps.SciMLBase]]
-deps = ["ArrayInterfaceCore", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "RecipesBase", "RecursiveArrayTools", "StaticArrays", "Statistics", "Tables", "TreeViews"]
-git-tree-sha1 = "e74049cca1ff273cc62697dd3739f7d43e029d93"
+deps = ["ArrayInterfaceCore", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "RecipesBase", "RecursiveArrayTools", "StaticArraysCore", "Statistics", "Tables", "TreeViews"]
+git-tree-sha1 = "6a3f7d9b084b508e87d12135de950ac969187954"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "1.41.4"
+version = "1.42.0"
 
 [[deps.Scratch]]
 deps = ["Dates"]
@@ -3814,15 +4016,20 @@ version = "0.1.1"
 
 [[deps.Static]]
 deps = ["IfElse"]
-git-tree-sha1 = "5d2c08cef80c7a3a8ba9ca023031a85c263012c5"
+git-tree-sha1 = "11f1b69a28b6e4ca1cc18342bfab7adb7ff3a090"
 uuid = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
-version = "0.6.6"
+version = "0.7.3"
 
 [[deps.StaticArrays]]
-deps = ["LinearAlgebra", "Random", "Statistics"]
-git-tree-sha1 = "2bbd9f2e40afd197a1379aef05e0d85dba649951"
+deps = ["LinearAlgebra", "Random", "StaticArraysCore", "Statistics"]
+git-tree-sha1 = "9f8a5dc5944dc7fbbe6eb4180660935653b0a9d9"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.4.7"
+version = "1.5.0"
+
+[[deps.StaticArraysCore]]
+git-tree-sha1 = "66fe9eb253f910fe8cf161953880cfdaef01cdf0"
+uuid = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
+version = "1.0.1"
 
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -3860,15 +4067,15 @@ version = "6.49.1"
 
 [[deps.StrideArraysCore]]
 deps = ["ArrayInterface", "CloseOpenIntervals", "IfElse", "LayoutPointers", "ManualMemory", "SIMDTypes", "Static", "ThreadingUtilities"]
-git-tree-sha1 = "56414f7e1372f39d8ab4b6ffc3211cfa9e1830d3"
+git-tree-sha1 = "367989c5c0c856fdf7e7f6577b384e63104fb854"
 uuid = "7792a7ef-975c-4747-a70f-980b88e8d1da"
-version = "0.3.12"
+version = "0.3.14"
 
 [[deps.StructArrays]]
 deps = ["Adapt", "DataAPI", "StaticArrays", "Tables"]
-git-tree-sha1 = "9abba8f8fb8458e9adf07c8a2377a070674a24f1"
+git-tree-sha1 = "ec47fb6069c57f1cee2f67541bf8f23415146de7"
 uuid = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
-version = "0.6.8"
+version = "0.6.11"
 
 [[deps.SuiteSparse]]
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
@@ -3956,10 +4163,10 @@ uuid = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
 version = "0.1.10"
 
 [[deps.TiffImages]]
-deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "OffsetArrays", "PkgVersion", "ProgressMeter", "UUIDs"]
-git-tree-sha1 = "f90022b44b7bf97952756a6b6737d1a0024a3233"
+deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "Mmap", "OffsetArrays", "PkgVersion", "ProgressMeter", "UUIDs"]
+git-tree-sha1 = "fcf41697256f2b759de9380a7e8196d6516f0310"
 uuid = "731e570b-9d59-4bfa-96dc-6df516fadf69"
-version = "0.5.5"
+version = "0.6.0"
 
 [[deps.TikzPictures]]
 deps = ["LaTeXStrings", "Poppler_jll", "Requires", "Tectonic"]
@@ -3998,9 +4205,9 @@ version = "0.3.0"
 
 [[deps.TriangularSolve]]
 deps = ["CloseOpenIntervals", "IfElse", "LayoutPointers", "LinearAlgebra", "LoopVectorization", "Polyester", "Static", "VectorizationBase"]
-git-tree-sha1 = "b8d08f55b02625770c09615d96927b3a8396925e"
+git-tree-sha1 = "caf797b6fccbc0d080c44b4cb2319faf78c9d058"
 uuid = "d5829a12-d9aa-46ab-831f-fb7c9ab06edf"
-version = "0.1.11"
+version = "0.1.12"
 
 [[deps.Tricks]]
 git-tree-sha1 = "6bac775f2d42a611cdfcd1fb217ee719630c4175"
@@ -4045,9 +4252,9 @@ version = "1.1.1"
 
 [[deps.VectorizationBase]]
 deps = ["ArrayInterface", "CPUSummary", "HostCPUFeatures", "IfElse", "LayoutPointers", "Libdl", "LinearAlgebra", "SIMDTypes", "Static"]
-git-tree-sha1 = "7d3de169cd221392082a5abc7f363726e1a30628"
+git-tree-sha1 = "9d87c8c1d27dc20ba8be6bdca85d36556c371172"
 uuid = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
-version = "0.21.36"
+version = "0.21.38"
 
 [[deps.VertexSafeGraphs]]
 deps = ["Graphs"]
@@ -4258,7 +4465,7 @@ version = "3.5.0+0"
 # ╟─fd2f6a01-9125-49fb-8615-b2e5deccd107
 # ╟─930fe232-f4ff-4331-9752-4e4ec0e66009
 # ╟─386334a4-60bf-47de-bf72-516f042b1407
-# ╟─9b0f3856-bee3-485e-9049-1a082c86e571
+# ╠═9b0f3856-bee3-485e-9049-1a082c86e571
 # ╟─d5ba04de-e2e8-44af-9b60-6a47b782248e
 # ╟─396aa4fe-5d65-4852-9cb2-03c654201f6e
 # ╟─399a13c4-235b-40e7-8a2f-5affd889c014

@@ -1,14 +1,18 @@
+#define PRECISION 1.0e-10
+#define DEQU(a, b) (fabs(a - b) < PRECISION)
+#define DNEQ(a, b) (fabs(a - b) >= PRECISION)
+
 /* Index to value functions */
-static double fun_if(double *idx) { return (-0.09888888888888889 + 0.10888888888888888 * idx[0]); }
-static double fun_zf(double *idx) { return (-0.0044444444444444444 + 0.0044444444444444444 * idx[1]); }
-static double fun_rh(double *idx) { return (-0.0013730014792880433 + 0.0038444041420065203 * idx[2]); }
-static double fun_it(double *idx) { return (0.001 * idx[3]); }
+static double fun_if(double *idx) { return (0.01 + 0.05157894736842105 * idx[0]); }
+static double fun_zf(double *idx) { return (0.002105263157894737 * idx[1]); }
+static double fun_rh(double *idx) { return (0.002471402662718477 + 0.001821033540950457 * idx[2]); }
+static double fun_it(double *idx) { return (0.001 + 0.0004736842105263158 * idx[3]); }
 /* Value to index functions */
-static double inv_fun_if(double *idx) { return (0.9081632653061225 + 9.183673469387756 * idx[0]); }
-static double inv_fun_zf(double *idx) { return (1.0 + 225.0 * idx[1]); }
-static double inv_fun_rh(double *idx) { return (0.3571428571428572 + 260.11833383315087 * idx[2]); }
-static double inv_fun_it(double *idx) { return (999.9999999999999 * idx[3]); }
+static double inv_fun_if(double *idx) { return (-0.19387755102040816 + 19.387755102040817 * idx[0]); }
+static double inv_fun_zf(double *idx) { return (475.0 * idx[1]); }
+static double inv_fun_rh(double *idx) { return (-1.357142857142857 + 549.138704758874 * idx[2]); }
+static double inv_fun_it(double *idx) { return (-2.1111111111111107 + 2111.111111111111 * idx[3]); }
 
 double (*FUN[])(double *) = {fun_if, fun_zf, fun_rh, fun_it};
 double (*INV_FUN[])(double *) = {inv_fun_if, inv_fun_zf, inv_fun_rh, inv_fun_it};
-const int NGRID[] = {10, 10, 10, 10};
+const int NGRID[] = {20, 20, 20, 20};
