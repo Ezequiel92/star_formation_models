@@ -835,7 +835,7 @@ let
 		title = "b = $(params.b)   Ms = $(params.Ms)   α = $(params.α)",
 	)
 
-	for (idx, (time, c)) in pairs(zip(T, colors))
+	for (idx, (time, c)) in enumerate(zip(T, colors))
 		scatterlines!(
 			ax, 
 			Z, 
@@ -951,7 +951,7 @@ let
 		title = "b = $(params[1].b)   Ms = $(params[1].Ms)   α = $(params[1].α)",
 	)
 
-	for (idx, (time, c)) in pairs(zip(T, colors))
+	for (idx, (time, c)) in enumerate(zip(T, colors))
 		scatterlines!(
 			ax, 
 			ustrip.(densities), 
@@ -1011,7 +1011,7 @@ let
 		title = "b = $(params[1].b)   Ms = $(params[1].Ms)   α = $(params[1].α)",
 	)
 
-	for (idx, (time, c)) in pairs(zip(T, colors))
+	for (idx, (time, c)) in enumerate(zip(T, colors))
 		scatterlines!(
 			ax, 
 			ustrip.(densities), 
@@ -1071,7 +1071,7 @@ let
 		title = "b = $(params[1].b)   Ms = $(params[1].Ms)   α = $(params[1].α)",
 	)
 
-	for (idx, (time, c)) in pairs(zip(T, colors))
+	for (idx, (time, c)) in enumerate(zip(T, colors))
 		scatterlines!(
 			ax, 
 			ustrip.(densities), 
@@ -1131,7 +1131,7 @@ let
 		title = "b = $(params[1].b)   Ms = $(params[1].Ms)   α = $(params[1].α)",
 	)
 
-	for (idx, (time, c)) in pairs(zip(T, colors))
+	for (idx, (time, c)) in enumerate(zip(T, colors))
 		scatterlines!(
 			ax, 
 			ustrip.(densities), 
@@ -1249,7 +1249,7 @@ let
 		title = "b = $(params.b)   Ms = $(params.Ms)   α = $(params.α)",
 	)
 
-	for (idx, (time, c)) in pairs(zip(T, colors))
+	for (idx, (time, c)) in enumerate(zip(T, colors))
 		scatterlines!(
 			ax, 
 			af, 
@@ -1310,7 +1310,7 @@ let
 		title = "b = $(params.b)   Ms = $(params.Ms)   α = $(params.α)",
 	)
 
-	for (idx, (time, c)) in pairs(zip(T, colors))
+	for (idx, (time, c)) in enumerate(zip(T, colors))
 		scatterlines!(
 			ax, 
 			mf, 
