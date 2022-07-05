@@ -533,7 +533,7 @@ begin
 		Qion = Vector{Quantity}(undef, length(files))
 		Qdiss = Vector{Quantity}(undef, length(files))
 		
-		for (i, file) in enumerate(files)
+		for (i, file) in pairs(files)
 			
 			data = readdlm(file)
 			df = identity.(DataFrame(data, ["λ", "L⋆", "Lneb", "Ltot"]))
@@ -1689,10 +1689,10 @@ begin
 	σ_R = Vector{Float64}(undef, length(M_Hs))
 	σ_Zsn = Vector{Float64}(undef, length(M_Hs))
 	
-	for (i, m_high) in enumerate(M_Hs)
+	for (i, m_high) in pairs(M_Hs)
 		local masses = [0.1, m_high, 8] .* u"Msun"
 		remnants = Vector{Vector{Float64}}(undef, length(Zs))
-		for (j, z) in enumerate(Zs)
+		for (j, z) in pairs(Zs)
 			R, Zsn = recycled_fraction(MODEL_fix, IMF_fix, z, masses)
 			remnants[j] = [R, Zsn]
 		end
