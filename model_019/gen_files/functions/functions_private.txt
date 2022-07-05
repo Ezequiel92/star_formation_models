@@ -1,0 +1,18 @@
+#define PRECISION 1.0e-12
+#define DEQU(a, b) (fabs(a - b) < PRECISION)
+#define DNEQ(a, b) (fabs(a - b) >= PRECISION)
+
+/* Index to value functions */
+static double fun_if(double *idx) { return (0.2 + 0.027586206896551727 * idx[0]); }
+static double fun_zf(double *idx) { return (pow(10, -4.872895201635193 + 0.14392845507928187 * idx[1])); }
+static double fun_rh(double *idx) { return (pow(10, -2.154901959985743 + 0.1328921367007504 * idx[2])); }
+static double fun_it(double *idx) { return (1.0e-5 + 3.103448275862069e-6 * idx[3]); }
+/* Value to index functions */
+static double inv_fun_if(double *idx) { return (-7.250000000000001 + 36.25 * idx[0]); }
+static double inv_fun_zf(double *idx) { return (33.8563712015876 + 6.947896435414094 * log10(idx[1])); }
+static double inv_fun_rh(double *idx) { return (16.215421118844688 + 7.524899703071395 * log10(idx[2])); }
+static double inv_fun_it(double *idx) { return (-3.2222222222222223 + 322222.22222222225 * idx[3]); }
+
+static double (*FUN[])(double *) = {fun_if, fun_zf, fun_rh, fun_it};
+static double (*INV_FUN[])(double *) = {inv_fun_if, inv_fun_zf, inv_fun_rh, inv_fun_it};
+static const int NGRID[] = {30, 30, 30, 30};
