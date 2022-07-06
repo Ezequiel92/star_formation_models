@@ -149,13 +149,18 @@ end;
 #=╠═╡
 open("./gen_files/functions/functions_public.txt", "w") do file
 
-	write(file, "#define DEQU(a, b) (fabs(a - b) < 1.0e-$IN_PRES)\n")
-	write(file, "#define DNEQ(a, b) (fabs(a - b) >= 1.0e-$IN_PRES)\n\n")
-
-	write(file, "#define N_COLS $N_COLS  // Number of columns in the table\n")
-	write(file, "#define N_ROWS $N_ROWS  // Number of rows in the table\n")
-	write(file, "#define N_DIMS $N_DIMS  // Number of dimensions of the problem\n")
-	write(file, "#define N_VERT $N_VERT  // Number of vertices of a n-rectangle = 2^N_DIMS\n\n")
+	write(
+		file, 
+		"""
+		#define DEQU(a, b) (fabs(a - b) < 1.0e-$IN_PRES)
+		#define DNEQ(a, b) (fabs(a - b) >= 1.0e-$IN_PRES)
+	
+		#define N_COLS $N_COLS  // Number of columns in the table
+		#define N_ROWS $N_ROWS  // Number of rows in the table
+		#define N_DIMS $N_DIMS  // Number of dimensions of the problem
+		#define N_VERT $N_VERT  // Number of vertices of a n-rectangle = 2^N_DIMS\n
+		""",
+	)
 
 	write(file, "/* Index to value functions */\n")
 
@@ -175,7 +180,11 @@ open("./gen_files/functions/functions_public.txt", "w") do file
 		string(inv_names), 
 		'[' => '{', ']' => '}', '\"' => "",
 	)
-	tail = "\nstatic double (*FUN[])(double *) = $names_str;\nstatic double (*INV_FUN[])(double *) = $inv_names_str;\nstatic const int NGRID[] =$N_str;\n"
+	tail = """
+	static double (*FUN[])(double *) = $names_str;
+	static double (*INV_FUN[])(double *) = $inv_names_str;
+	static const int NGRID[] =$N_str;
+	"""
 
 	write(file, tail)
 end;
@@ -260,14 +269,14 @@ md"## `ccall` functions"
 begin
     function read_ftable(filename)
         return ccall(
-            (:read_ftable, "./c_test/interpolation/libinterpolationpublic"),
+            (:read_ftable, "./c_functions/interpolation/libinterpolationpublic"),
             Ptr{Cdouble}, (Cstring,), filename,
         )
     end
 
     function interpolate(table, ic)
         return ccall(
-            (:interpolate, "./c_test/interpolation/libinterpolationpublic"),
+            (:interpolate, "./c_functions/interpolation/libinterpolationpublic"),
             Cdouble, (Ptr{Cdouble}, Ref{Cdouble}), table, ic,
         )
     end
