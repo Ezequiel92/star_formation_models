@@ -131,8 +131,8 @@ let
 	
 	# Parameters
 	max_age = log10(16.5 * 1e9)
-	interp_eta_ion = model.get_interp_eta(max_age, true)
-	interp_eta_diss = model.get_interp_eta(max_age, false)
+	interp_eta_ion = model.get_interp_eta(max_age, true)[IMF]
+	interp_eta_diss = model.get_interp_eta(max_age, false)[IMF]
 	
 	parameters = [
 		ustrip(u"Msun * pc^-3", n₀ * u"mp"),  # ρ₀ [Mₒ pc^(-3)]
@@ -161,14 +161,14 @@ let
 	
 	# Parameters
 	max_age = log10(16.5 * 1e9)
-	interp_eta_ion = model.get_interp_eta(max_age, true)
-	interp_eta_diss = model.get_interp_eta(max_age, false)
+	interp_eta_ion = model.get_interp_eta(max_age, true)[IMF]
+	interp_eta_diss = model.get_interp_eta(max_age, false)[IMF]
 	
 	parameters = [
 		ustrip(u"Msun * pc^-3", n₀ * u"mp"),  # ρ₀ [Mₒ pc^(-3)]
 		i₀ + a₀ + m₀,                         # g₀
-		interp_eta_ion[IMF](z₀),
-		interp_eta_diss[IMF](z₀),
+		interp_eta_ion(z₀),
+		interp_eta_diss(z₀),
 	]
 	
 	model.jacobian!(dydt, ic, parameters, 0.0)

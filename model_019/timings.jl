@@ -61,9 +61,9 @@ begin
 	
 	# Parameters
 	max_age = log10(t_end * 1e9)
-	interp_eta_ion = model.get_interp_eta(max_age, true)
-	interp_eta_diss = model.get_interp_eta(max_age, false)
-	
+	interp_eta_ion = model.get_interp_eta(max_age, true)[model.IMF]
+	interp_eta_diss = model.get_interp_eta(max_age, false)[model.IMF]
+
 	parameters = [
 		ustrip(u"Msun * pc^-3", n₀ * u"mp"),    # ρ₀ [Mₒ pc^(-3)]
 		i₀ + a₀ + m₀,                           # g₀

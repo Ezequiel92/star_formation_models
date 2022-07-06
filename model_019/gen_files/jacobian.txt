@@ -1,15 +1,15 @@
 static int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *ode_params)
-{ 
+{
   (void)(t);
-
+	    
   struct ODEParameters parameters = *(struct ODEParameters *)ode_params;
-  double rho0                     = parameters.rho0; /* Mean total density */
-  double g0                       = parameters.g0;   /* Initial gas fraction: (i(0) + a(0) + m(0)) / ρ */
-  double eta_ion                  = eval_interp(parameters.interp_ion, y[3]);
-  double eta_diss                 = eval_interp(parameters.interp_diss, y[3]);
-
+  double rho0 = parameters.rho0;  /* Mean total density */
+  double g0 = parameters.g0;  /* Initial gas fraction: (i(0) + a(0) + m(0)) / ρ */
+  double eta_ion = eval_interp(parameters.interp_ion, y[3]);
+  double eta_diss = eval_interp(parameters.interp_diss, y[3]);
+	
   gsl_matrix_view dfdy_mat = gsl_matrix_view_array(dfdy, 5, 5);
-  gsl_matrix *m            = &dfdy_mat.matrix;
+  gsl_matrix *m = &dfdy_mat.matrix;
 
   gsl_matrix_set(m, 0, 0, (0.08223460855643472 * rho0 * y[2] + 0.5 * rho0 * eta_ion  * y[2] - 535200.887413877 * sqrt((y[0] + y[1] + y[2]) * rho0) * rho0 * g0 * y[0]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));
   gsl_matrix_set(m, 0, 1, ((0.08223460855643472 + 0.5 * eta_ion ) * rho0 * y[2]) / (0.8091454722567165 * sqrt((y[0] + y[1] + y[2]) * rho0) * g0));

@@ -224,8 +224,8 @@ function write_table(path::String, rho_pdf::Bool)::Int64
 
                 # Parameters
                 max_age = log10(i_t * 1e9)
-                interp_eta_ion = model.get_interp_eta(max_age, true)
-                interp_eta_diss = model.get_interp_eta(max_age, false)
+                interp_eta_ion = model.get_interp_eta(max_age, true)[model.IMF]
+                interp_eta_diss = model.get_interp_eta(max_age, false)[model.IMF]
                 parameters = [
                     ρ₀,   # ρ₀ [Mₒ pc^(-3)]
                     1.0,  # g₀
@@ -290,8 +290,8 @@ function exact_ode(ic...)
     i0, ρ0, it = ic
 
     max_age = log10(it * 1e9)
-    interp_eta_ion = model.get_interp_eta(max_age, true)
-    interp_eta_diss = model.get_interp_eta(max_age, false)
+    interp_eta_ion = model.get_interp_eta(max_age, true)[model.IMF]
+    interp_eta_diss = model.get_interp_eta(max_age, false)[model.IMF]
     parameters = [ρ0, 1.0, interp_eta_ion, interp_eta_diss]
 
     # Integration

@@ -50,19 +50,30 @@ md"## Write Jacobian into file"
 # ╔═╡ e1ac3f7f-353e-4c14-943c-2a4424529666
 begin
 	
-	head = "static int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *ode_params)
-{ 
+	head = """
+static int jacobian(double t, const double y[], double *dfdy, double dfdt[], void *ode_params)
+{
   (void)(t);
-
+	    
   struct ODEParameters parameters = *(struct ODEParameters *)ode_params;
-  double rho0                     = parameters.rho0; /* Mean total density */
-  double g0                       = parameters.g0;   /* Initial gas fraction: (i(0) + a(0) + m(0)) / ρ */
-  double eta_ion                  = eval_interp(parameters.interp_ion, y[3]);
-  double eta_diss                 = eval_interp(parameters.interp_diss, y[3]);
-
+  double rho0 = parameters.rho0;  /* Mean total density */
+  double g0 = parameters.g0;  /* Initial gas fraction: (i(0) + a(0) + m(0)) / ρ */
+  double eta_ion = eval_interp(parameters.interp_ion, y[3]);
+  double eta_diss = eval_interp(parameters.interp_diss, y[3]);
+	
   gsl_matrix_view dfdy_mat = gsl_matrix_view_array(dfdy, $NUMEQU, $NUMEQU);
-  gsl_matrix *m            = &dfdy_mat.matrix;\n\n"
-	tail = "  dfdt[0] = 0;\n  dfdt[1] = 0;\n  dfdt[2] = 0;\n  dfdt[3] = 0;\n  dfdt[4] = 0;\n\n  return GSL_SUCCESS;\n}"
+  gsl_matrix *m = &dfdy_mat.matrix;\n\n"""
+	
+	tail = """
+	  dfdt[0] = 0;
+	  dfdt[1] = 0;
+	  dfdt[2] = 0;
+	  dfdt[3] = 0;
+	  dfdt[4] = 0;
+	
+	  return GSL_SUCCESS;
+	}
+	"""
 
 	@variables dfdt[1:(NUMEQU * NUMEQU)]
 	dfdt= collect(dfdt)
@@ -90,7 +101,9 @@ begin
   				"RHS2[3]" => "eta_diss",
 				"+ -" => "- ",
 			)
+			
 			m = match(r"(?<=\{)(.*?)(?=\})", c_func)
+			
 			global jacobian_string *= replace(
 				m.match,
 				"  du[0] = " => "  gsl_matrix_set(m, $(i-1), $(j-1), ",
@@ -101,9 +114,11 @@ begin
 		global jacobian_string *= "\n"
 	end
 
+	pow_regex_01 = r"pow\(sqrt\((.*?)\), 2\)"
+	pow_regex_02 = r"(?<=pow\(sqrt\()(.*?)(?=\), 2\))"
 	jacobian_string = replace(
 		jacobian_string, 
-		r"pow\(sqrt\((.*?)\), 2\)" => x->match(r"(?<=pow\(sqrt\()(.*?)(?=\), 2\))", x).match,
+		pow_regex_01 => x->match(pow_regex_02, x).match,
 	)
 
 	open("./gen_files/jacobian.txt", "w") do file

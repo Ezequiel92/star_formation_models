@@ -1,4 +1,5 @@
-#define DIVISIONS Main.model_019.jl.DIVISIONS
+#define DIVISIONS 10
+
 /* Probability density function of the interstellar gas density */
 static const double PDF[] = {
 	0.12926709133405279,
@@ -12,6 +13,7 @@ static const double PDF[] = {
 	0.0007886571065396984,
 	0.0001127898050359872,
 };
+
 /* Density factor: rho = rho0 * F_RHO */
 static const double F_RHO[] = {
 	0.0301973834223185,

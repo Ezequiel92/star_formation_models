@@ -1788,15 +1788,15 @@ function system!(dydt, y, params, t)
     i, a, m, z, s = y
 
     # Parameters
-    ρ₀, g₀, interp_ion, interp_diss = params
+    ρ₀::Float64, g₀::Float64, interp_ion, interp_diss = params
 
     # Auxiliary equations
     g = i + a + m
     τS = (c₁ * g₀) / sqrt(g * ρ₀)
     τR = c₂ / (i * ρ₀)
     τC = c₃ / (g * ρ₀ * (z + Zeff))
-    ηdiss = interp_diss[IMF](z)
-    ηion = interp_ion[IMF](z)
+    ηdiss = interp_diss(z)
+    ηion = interp_ion(z)
     recombination = i / τR
     cloud_formation = a / τC
     ψ = (α * a + m * β) / τS
@@ -2021,8 +2021,8 @@ function fractions(
 
     # Interpolation functions to compute ηion and ηdiss
     max_age = log10(ustrip(u"yr", t_span[2]))
-    interp_eta_ion = get_interp_eta(max_age, true)
-    interp_eta_diss = get_interp_eta(max_age, false)
+    interp_eta_ion = get_interp_eta(max_age, true)[IMF]
+    interp_eta_diss = get_interp_eta(max_age, false)[IMF]
 
     # Integration
     if ρ_PDF === nothing

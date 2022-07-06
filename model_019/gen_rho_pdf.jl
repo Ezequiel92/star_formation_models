@@ -46,9 +46,16 @@ begin
 	first_s = model.DEVIATION[1] + (step / 2)
 
 	open("./gen_files/rho_pdf.txt", "w") do file
-		write(file, "#define DIVISIONS $model.DIVISIONS\n")
-		write(file, "/* Probability density function of the interstellar gas density */\n")
-		write(file, "static const double PDF[] = {\n")
+		write(
+			file, 
+			"""
+			#define DIVISIONS $(model.DIVISIONS)
+			
+			/* Probability density function of the interstellar gas density */
+			static const double PDF[] = {
+			""",
+		)
+		
 		for i in 1:model.DIVISIONS
 			s = first_s + step * (i - 1)
 			int_val = quadgk(
@@ -59,10 +66,15 @@ begin
 			)[1]
 			write(file, "\t$int_val,\n")
 		end
-		write(file, "};\n")
+		write(file, "};\n\n")
 
-		write(file, "/* Density factor: rho = rho0 * F_RHO */\n")
-		write(file, "static const double F_RHO[] = {\n")
+		write(
+			file, 
+			"""
+			/* Density factor: rho = rho0 * F_RHO */
+			static const double F_RHO[] = {
+			""",
+		)
 		for i in 1:model.DIVISIONS
 			f = exp(first_s + step * (i - 1))
 			write(file, "\t$f,\n")
