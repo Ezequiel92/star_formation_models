@@ -11,22 +11,22 @@ using CSV, CairoMakie, DataFrames, DataFramesMeta, DelimitedFiles, DifferentialE
 # This is from the Julia source code (evalfile in base/loading.jl) but with
 # the modification that it returns the module instead of the last object
 function include_module(path::String)
-	
-	name = Symbol(basename(path))
-	mod = Module(name)
-	Core.eval(
-		mod,
+
+    name = Symbol(basename(path))
+    mod = Module(name)
+    Core.eval(
+        mod,
         Expr(
-			:toplevel,
+            :toplevel,
             :(eval(x) = $(Expr(:core, :eval))($name, x)),
             :(include(x) = $(Expr(:top, :include))($name, x)),
             :(include(mapexpr::Function, x) = $(Expr(:top, :include))(mapexpr, $name, x)),
             :(include($path)),
-		),
-	)
-	
-	return mod
-	
+        ),
+    )
+
+    return mod
+
 end;
 
 # ╔═╡ 80f254af-bbba-4203-83e0-359695ee0439
@@ -40,81 +40,81 @@ md"# Definitions"
 
 # ╔═╡ ef51988e-6669-4269-a5c7-3de9daba0504
 begin
-	# Variables: 
-	# 1. i₀: Ionized fraction
-	# 3. ρ₀: Mean density [Mₒ pc^(-3)]
-	# 4. it: Integration time [Gyr]
+    # Variables: 
+    # 1. i₀: Ionized fraction
+    # 3. ρ₀: Mean density [Mₒ pc^(-3)]
+    # 4. it: Integration time [Gyr]
 
-	# Linear functions
-	function lin_idx_to_val(idx, n, xi, xf)
-		return ((xf - xi) / (n - 1.0)) * idx + xi
-	end
-	function lin_val_to_idx(fi, n, xi, xf)
-		return (fi - xi) * (n - 1.0) / (xf - xi)
-	end
+    # Linear functions
+    function lin_idx_to_val(idx, n, xi, xf)
+        return ((xf - xi) / (n - 1.0)) * idx + xi
+    end
+    function lin_val_to_idx(fi, n, xi, xf)
+        return (fi - xi) * (n - 1.0) / (xf - xi)
+    end
 
-	# Log functions
-	function log_idx_to_val(idx, n, xi, xf)
-		xi_log = log10(xi)
-		xf_log = log10(xf)
-		val_log = ((xf_log - xi_log) / (n - 1.0)) * idx + xi_log
-		return 10^val_log
-	end
-	function log_val_to_idx(val, n, xi, xf)
-		val_log = log10(val)
-		xi_log = log10(xi)
-		xf_log = log10(xf)
-		return (val_log - xi_log) * (n - 1.0) / (xf_log - xi_log)
-	end
+    # Log functions
+    function log_idx_to_val(idx, n, xi, xf)
+        xi_log = log10(xi)
+        xf_log = log10(xf)
+        val_log = ((xf_log - xi_log) / (n - 1.0)) * idx + xi_log
+        return 10^val_log
+    end
+    function log_val_to_idx(val, n, xi, xf)
+        val_log = log10(val)
+        xi_log = log10(xi)
+        xf_log = log10(xf)
+        return (val_log - xi_log) * (n - 1.0) / (xf_log - xi_log)
+    end
 
-	# Number of digits to use when writing the table
-	const IN_PRES = 12
-	const OUT_PRES = 8
-	
-	const N = [30, 30, 30]      # Number of point for each variable
-	const N_DIMS = length(N)    # Number of dimensions of the problem
-	const N_VERT = 2^N_DIMS     # Number of vertices of a n-rectangle = 2^N_DIMS
-	const N_COLS = N_DIMS + 1   # Number of columns in the table
-	const N_ROWS = reduce(*, N) # Number of rows in the table
+    # Number of digits to use when writing the table
+    const IN_PRES = 12
+    const OUT_PRES = 8
 
-	# Extreme values for each variable
-	i0 = [0.2, 1.0]
-	ρ0 = [0.007, 1500]
-	it = [1e-5, 10e-5]
+    const N = [30, 30, 30]      # Number of point for each variable
+    const N_DIMS = length(N)    # Number of dimensions of the problem
+    const N_VERT = 2^N_DIMS     # Number of vertices of a n-rectangle = 2^N_DIMS
+    const N_COLS = N_DIMS + 1   # Number of columns in the table
+    const N_ROWS = reduce(*, N) # Number of rows in the table
 
-	# Variable iterators
-	i0_range = range(i0[1], i0[2], N[1])
-	ρ0_range = 10 .^ range(log10(ρ0[1]), log10(ρ0[2]), N[2])
-	it_range = range(it[1], it[2], N[3])
+    # Extreme values for each variable
+    i0 = [0.2, 1.0]
+    ρ0 = [0.007, 1500]
+    it = [1e-5, 10e-5]
 
-	# Functions: index -> value
-	fun_if(idx) = lin_idx_to_val(idx[1], N[1], i0[1], i0[2])
-	fun_rh(idx) = log_idx_to_val(idx[2], N[2], ρ0[1], ρ0[2])
-	fun_it(idx) = lin_idx_to_val(idx[3], N[3], it[1], it[2])
-	funcs = [fun_if, fun_rh, fun_it]
-	names = ["fun_if", "fun_rh", "fun_it"]
+    # Variable iterators
+    i0_range = range(i0[1], i0[2], N[1])
+    ρ0_range = 10 .^ range(log10(ρ0[1]), log10(ρ0[2]), N[2])
+    it_range = range(it[1], it[2], N[3])
 
-	# Inverse functions: value -> index
-	inv_fun_if(fi) = lin_val_to_idx(fi[1], N[1], i0[1], i0[2])
-	inv_fun_rh(fi) = log_val_to_idx(fi[2], N[2], ρ0[1], ρ0[2])
-	inv_fun_it(fi) = lin_val_to_idx(fi[3], N[3], it[1], it[2])
-	inv_funcs = [inv_fun_if, inv_fun_rh, inv_fun_it]
-	inv_names = ["inv_fun_if", "inv_fun_rh", "inv_fun_it"]
+    # Functions: index -> value
+    fun_if(idx) = lin_idx_to_val(idx[1], N[1], i0[1], i0[2])
+    fun_rh(idx) = log_idx_to_val(idx[2], N[2], ρ0[1], ρ0[2])
+    fun_it(idx) = lin_idx_to_val(idx[3], N[3], it[1], it[2])
+    funcs = [fun_if, fun_rh, fun_it]
+    names = ["fun_if", "fun_rh", "fun_it"]
 
-	# Number of random points to compute the mean global error
-	const N_ERR = 2000
-	errors = Vector{Float64}(undef, N_ERR)
-	err_i0 = round.(rand(N_ERR) .* (i0[2] - i0[1]) .+ i0[1], digits=IN_PRES)
-	err_ρ0 = round.(rand(N_ERR) .* (ρ0[2] - ρ0[1]) .+ ρ0[1], digits=IN_PRES)
-	err_it = round.(rand(N_ERR) .* (it[2] - it[1]) .+ it[1], digits=IN_PRES)
+    # Inverse functions: value -> index
+    inv_fun_if(fi) = lin_val_to_idx(fi[1], N[1], i0[1], i0[2])
+    inv_fun_rh(fi) = log_val_to_idx(fi[2], N[2], ρ0[1], ρ0[2])
+    inv_fun_it(fi) = lin_val_to_idx(fi[3], N[3], it[1], it[2])
+    inv_funcs = [inv_fun_if, inv_fun_rh, inv_fun_it]
+    inv_names = ["inv_fun_if", "inv_fun_rh", "inv_fun_it"]
 
-	# Paths
-	const TABLE = "./gen_files/ode_tables/ode_table_public.txt"
-	const TABLE_RHO = "./gen_files/ode_tables/ode_table_rho_pdf_public.txt"
+    # Number of random points to compute the mean global error
+    const N_ERR = 2000
+    errors = Vector{Float64}(undef, N_ERR)
+    err_i0 = round.(rand(N_ERR) .* (i0[2] - i0[1]) .+ i0[1], digits=IN_PRES)
+    err_ρ0 = round.(rand(N_ERR) .* (ρ0[2] - ρ0[1]) .+ ρ0[1], digits=IN_PRES)
+    err_it = round.(rand(N_ERR) .* (it[2] - it[1]) .+ it[1], digits=IN_PRES)
 
-	# ODE solver configuration
-	const REL_TOL = 10.0^(-OUT_PRES - 2)
-	const KW_ARGS = (dense=false, force_dtmin=true, reltol=REL_TOL, maxiters=1e6)
+    # Paths
+    const TABLE = "./gen_files/ode_tables/ode_table_public.txt"
+    const TABLE_RHO = "./gen_files/ode_tables/ode_table_rho_pdf_public.txt"
+
+    # ODE solver configuration
+    const REL_TOL = 10.0^(-OUT_PRES - 2)
+    const KW_ARGS = (dense=false, force_dtmin=true, reltol=REL_TOL, maxiters=1e6)
 end;
 
 # ╔═╡ 50fab19c-98d4-4a2f-b67e-347c8efdef19
@@ -125,23 +125,23 @@ md"## Write functions to file"
 
 # ╔═╡ e74ec50c-3d7d-403f-b4fa-e4b66d6362c4
 function c_func(fun::Function, name::String)::String
-	head = "static double $name(double *idx) { return ("
-	tail = "); }\n"
-	
-	@variables idx[1:4]
-	c_func = build_function(simplify(fun(idx)), idx, target=Symbolics.CTarget())
-	
-	raw_str = head * match(r"(?<== )(.*?)(?=;\n\})", c_func).match * tail
-	str_out = replace(
-		raw_str,
-		"RHS1" => "idx", 
-		"+ -" => "- ",
-		" * 1)" => ")",
-		"* 1 " => "",
-		"1.0 * " => "",
-	)
-	
-	return str_out
+    head = "static double $name(double *idx) { return ("
+    tail = "); }\n"
+
+    @variables idx[1:4]
+    c_func = build_function(simplify(fun(idx)), idx, target=Symbolics.CTarget())
+
+    raw_str = head * match(r"(?<== )(.*?)(?=;\n\})", c_func).match * tail
+    str_out = replace(
+        raw_str,
+        "RHS1" => "idx",
+        "+ -" => "- ",
+        " * 1)" => ")",
+        "* 1 " => "",
+        "1.0 * " => "",
+    )
+
+    return str_out
 end;
 
 # ╔═╡ bb405530-d56e-40ec-8547-93f66b30d497
@@ -158,7 +158,7 @@ open("./gen_files/functions/functions_public.txt", "w") do file
 	write(file, "#define N_VERT $N_VERT  // Number of vertices of a n-rectangle = 2^N_DIMS\n\n")
 
 	write(file, "/* Index to value functions */\n")
-		
+
 	for (fun, name) in zip(funcs, names) 
 		write(file, c_func(fun, name))
 	end
@@ -168,7 +168,7 @@ open("./gen_files/functions/functions_public.txt", "w") do file
 	for (inv_fun, inv_name) in zip(inv_funcs, inv_names) 
 		write(file, c_func(inv_fun, inv_name))
 	end
-		
+
 	N_str = replace(string(N), '[' => '{', ']' => '}')
 	names_str = replace(string(names), '[' => '{', ']' => '}', '\"' => "")
 	inv_names_str =  replace(
@@ -176,7 +176,7 @@ open("./gen_files/functions/functions_public.txt", "w") do file
 		'[' => '{', ']' => '}', '\"' => "",
 	)
 	tail = "\nstatic double (*FUN[])(double *) = $names_str;\nstatic double (*INV_FUN[])(double *) = $inv_names_str;\nstatic const int NGRID[] =$N_str;\n"
-		
+
 	write(file, tail)
 end;
   ╠═╡ =#
@@ -187,70 +187,70 @@ md"## Write data table to file"
 # ╔═╡ 3e79362b-8ff1-4918-87bf-b624d0281bd0
 function write_table(path::String, rho_pdf::Bool)::Int64
 
-	# Number of NaNs in the output
-	number_nan = 0
-	
-	# Delete old table
-	rm(path, force=true)
+    # Number of NaNs in the output
+    number_nan = 0
 
-	idx = Vector{Int64}(undef, length(N))
-	ic = Vector{Float64}(undef, model.NUMEQU)
-	ic[3] = 0.0 # m₀
-	ic[4] = 0.0 # z₀
-	ic[5] = 0.0 # s₀
-	
-	for idx[1] in 0:(N[1] - 1)
-		
-		i₀ = funcs[1](idx)
-		ic[1] = i₀
-		ic[2] = 1 - i₀ # a₀
-	
-		for idx[2] in 0:(N[2] - 1)
-				
-			ρ₀ = funcs[2](idx)
-				
-			for idx[3] in 0:(N[3] - 1)
-					
-				i_t = funcs[3](idx)  
-	
-				# Parameters
-				max_age = log10(i_t * 1e9)
-				interp_eta_ion = model.get_interp_eta(max_age, true)
-				interp_eta_diss = model.get_interp_eta(max_age, false)
-				parameters = [
-					ρ₀,   # ρ₀ [Mₒ pc^(-3)]
-					1.0,  # g₀
-					interp_eta_ion,
-					interp_eta_diss,
-				]
-		
-				# Integration
-	    		sol = try 
-					model.integrate_model(
-						ic, 
-						(0.0, i_t), 
-						parameters, 
-						rho_pdf, 
-						kwargs = KW_ARGS,
-					)
-				catch _
-					NaN
-					number_nan += 1
-				end
-				typeof(sol) == Float64 ? s_f = NaN : s_f = sol[5]
-			
-				# Write to file
-				fmt = Printf.Format(
-					"%.$(IN_PRES)f %.$(IN_PRES)f %.$(IN_PRES)f %.$(OUT_PRES)f\n",
-				)
-				open(path, "a") do file
-					print(file, Printf.format(fmt, i₀, ρ₀, i_t, s_f))
-				end
-			end
-		end
-	end
+    # Delete old table
+    rm(path, force=true)
 
-	return number_nan
+    idx = Vector{Int64}(undef, length(N))
+    ic = Vector{Float64}(undef, model.NUMEQU)
+    ic[3] = 0.0 # m₀
+    ic[4] = 0.0 # z₀
+    ic[5] = 0.0 # s₀
+
+    for idx[1] in 0:(N[1]-1)
+
+        i₀ = funcs[1](idx)
+        ic[1] = i₀
+        ic[2] = 1 - i₀ # a₀
+
+        for idx[2] in 0:(N[2]-1)
+
+            ρ₀ = funcs[2](idx)
+
+            for idx[3] in 0:(N[3]-1)
+
+                i_t = funcs[3](idx)
+
+                # Parameters
+                max_age = log10(i_t * 1e9)
+                interp_eta_ion = model.get_interp_eta(max_age, true)
+                interp_eta_diss = model.get_interp_eta(max_age, false)
+                parameters = [
+                    ρ₀,   # ρ₀ [Mₒ pc^(-3)]
+                    1.0,  # g₀
+                    interp_eta_ion,
+                    interp_eta_diss,
+                ]
+
+                # Integration
+                sol = try
+                    model.integrate_model(
+                        ic,
+                        (0.0, i_t),
+                        parameters,
+                        rho_pdf,
+                        kwargs=KW_ARGS,
+                    )
+                catch _
+                    NaN
+                    number_nan += 1
+                end
+                typeof(sol) == Float64 ? s_f = NaN : s_f = sol[5]
+
+                # Write to file
+                fmt = Printf.Format(
+                    "%.$(IN_PRES)f %.$(IN_PRES)f %.$(IN_PRES)f %.$(OUT_PRES)f\n",
+                )
+                open(path, "a") do file
+                    print(file, Printf.format(fmt, i₀, ρ₀, i_t, s_f))
+                end
+            end
+        end
+    end
+
+    return number_nan
 end;
 
 # ╔═╡ cee948cb-3ef7-4cbb-af17-809418d62a1b
@@ -258,19 +258,19 @@ md"## `ccall` functions"
 
 # ╔═╡ 69a9cbcc-4591-419b-bab0-5f0886e8dda7
 begin
-	function read_ftable(filename)
-	    return ccall(
-			(:read_ftable, "./c_test/interpolation/libinterpolationpublic"), 
-			Ptr{Cdouble}, (Cstring,), filename,
-		)
-	end
-	
-	function interpolate(table, ic)
-	    return ccall(
-			(:interpolate, "./c_test/interpolation/libinterpolationpublic"), 
-			Cdouble, (Ptr{Cdouble}, Ref{Cdouble}), table, ic,
-		)
-	end
+    function read_ftable(filename)
+        return ccall(
+            (:read_ftable, "./c_test/interpolation/libinterpolationpublic"),
+            Ptr{Cdouble}, (Cstring,), filename,
+        )
+    end
+
+    function interpolate(table, ic)
+        return ccall(
+            (:interpolate, "./c_test/interpolation/libinterpolationpublic"),
+            Cdouble, (Ptr{Cdouble}, Ref{Cdouble}), table, ic,
+        )
+    end
 end;
 
 # ╔═╡ f1c9c5e8-cdd7-4d40-92ea-94c0899558ba
@@ -278,21 +278,21 @@ md"## Exact integration with Julia"
 
 # ╔═╡ a074d5a6-c3d2-4795-9b64-cc5450165fc1
 function exact_ode(ic...)
-	i0, ρ0, it = ic
-		
-	max_age = log10(it * 1e9)
-	interp_eta_ion = model.get_interp_eta(max_age, true)
-	interp_eta_diss = model.get_interp_eta(max_age, false)
-	parameters = [ρ0, 1.0, interp_eta_ion, interp_eta_diss]
-		
-	# Integration
-	return model.integrate_model(
-		[i0, 1 - i0, 0.0, 0.0, 0.0], 
-		(0.0, it), 
-		parameters, 
-		true, 
-		kwargs = KW_ARGS,
-	)[5]
+    i0, ρ0, it = ic
+
+    max_age = log10(it * 1e9)
+    interp_eta_ion = model.get_interp_eta(max_age, true)
+    interp_eta_diss = model.get_interp_eta(max_age, false)
+    parameters = [ρ0, 1.0, interp_eta_ion, interp_eta_diss]
+
+    # Integration
+    return model.integrate_model(
+        [i0, 1 - i0, 0.0, 0.0, 0.0],
+        (0.0, it),
+        parameters,
+        true,
+        kwargs=KW_ARGS,
+    )[5]
 end;
 
 # ╔═╡ a8aa7565-9b25-4b0d-9367-9a8207c0550c
@@ -319,38 +319,38 @@ md"# Test C functions"
 
 # ╔═╡ 2f548e10-c380-4618-86b1-34405edf14fd
 begin
-	# Load data with DelimitedFiles.jl
-	data = DataFrame(
-		readdlm(TABLE_RHO, ' ', header=false), 
-		["i0", "rho_0", "it", "s_f"],
-	)
-	results = permutedims(reshape(data[:, "s_f"], (N...)), (3, 2, 1))
-	
-	# Create interpolation function with Interpolations.jl
-	interp_julia = LinearInterpolation(
-		(i0_range, ρ0_range, it_range), 
-		results,
-		extrapolation_bc = Flat(),
-	)
+    # Load data with DelimitedFiles.jl
+    data = DataFrame(
+        readdlm(TABLE_RHO, ' ', header=false),
+        ["i0", "rho_0", "it", "s_f"],
+    )
+    results = permutedims(reshape(data[:, "s_f"], (N...)), (3, 2, 1))
+
+    # Create interpolation function with Interpolations.jl
+    interp_julia = LinearInterpolation(
+        (i0_range, ρ0_range, it_range),
+        results,
+        extrapolation_bc=Flat(),
+    )
 end;
 
 # ╔═╡ 90f12838-b788-4d6b-a119-7c6c0ed22d24
 begin
-	# Load data with the C function `read_ftable`
-	table = read_ftable(TABLE_RHO)
+    # Load data with the C function `read_ftable`
+    table = read_ftable(TABLE_RHO)
 
-	# Create interpolation function using the C function `interpolate`
-	interp_C(init_cond...) = interpolate(table, init_cond)
+    # Create interpolation function using the C function `interpolate`
+    interp_C(init_cond...) = interpolate(table, init_cond)
 end;
 
 # ╔═╡ 9baf8c7d-1f83-48be-bd91-17dd2e07d6ba
 begin
-	c_julia_diff = 0.0
-	for i in 1:N_ERR
-		point = (err_i0[i], err_ρ0[i], err_it[i])
-		global c_julia_diff += abs(interp_C(point...) - interp_julia(point...)) 
-	end
-	@assert(c_julia_diff / N_ERR < 1.0^(-OUT_PRES))
+    c_julia_diff = 0.0
+    for i in 1:N_ERR
+        point = (err_i0[i], err_ρ0[i], err_it[i])
+        global c_julia_diff += abs(interp_C(point...) - interp_julia(point...))
+    end
+    @assert(c_julia_diff / N_ERR < 1.0^(-OUT_PRES))
 end
 
 # ╔═╡ 9988970a-d794-42ec-b151-27d46a75d0bd
@@ -358,17 +358,17 @@ md"# Error estimation"
 
 # ╔═╡ f5e4b5b3-0c76-48ec-b6d4-b6df2b00c9a1
 begin
-	c_err = Vector{Float64}(undef,N_ERR)
-	
-	for i in 1:N_ERR
-		point = (err_i0[i], err_ρ0[i], err_it[i])
-		interp_val = round(interp_C(point...), digits=OUT_PRES)
-		exact_val = round(exact_ode(point...), digits=OUT_PRES)
-		c_err[i] = exact_val == 0.0 ? NaN : abs(exact_val - interp_val) / exact_val
-	end
-	
-	filter!(!isnan, c_err)
-	mean(c_err) ± std(c_err)
+    c_err = Vector{Float64}(undef, N_ERR)
+
+    for i in 1:N_ERR
+        point = (err_i0[i], err_ρ0[i], err_it[i])
+        interp_val = round(interp_C(point...), digits=OUT_PRES)
+        exact_val = round(exact_ode(point...), digits=OUT_PRES)
+        c_err[i] = exact_val == 0.0 ? NaN : abs(exact_val - interp_val) / exact_val
+    end
+
+    filter!(!isnan, c_err)
+    mean(c_err) ± std(c_err)
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
