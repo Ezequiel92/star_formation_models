@@ -58,7 +58,9 @@ begin
         xi_log = log10(xi)
         xf_log = log10(xf)
         val_log = ((xf_log - xi_log) / (n - 1.0)) * idx + xi_log
-        return 10^val_log
+		
+		# exp() is more efficient than pow()
+        return exp(log(10) * val_log) 
     end
     function log_val_to_idx(val, n, xi, xf)
         val_log = log10(val)
@@ -67,11 +69,7 @@ begin
         return (val_log - xi_log) * (n - 1.0) / (xf_log - xi_log)
     end
 
-    # Number of digits to use when writing the table
-    const IN_PRES = 12
-    const OUT_PRES = 8
-
-    const N = [30, 30, 30]      # Number of point for each variable
+    const N = [30, 50, 30]      # Number of point for each variable
     const N_DIMS = length(N)    # Number of dimensions of the problem
     const N_VERT = 2^N_DIMS     # Number of vertices of a n-rectangle = 2^N_DIMS
     const N_COLS = N_DIMS + 1   # Number of columns in the table
@@ -79,13 +77,21 @@ begin
 
     # Extreme values for each variable
     i0 = [0.2, 1.0]
-    ρ0 = [0.007, 1500]
+    ρ0 = [0.007, 2500]
     it = [1e-5, 10e-5]
 
     # Variable iterators
     i0_range = range(i0[1], i0[2], N[1])
     ρ0_range = 10 .^ range(log10(ρ0[1]), log10(ρ0[2]), N[2])
     it_range = range(it[1], it[2], N[3])
+
+	# Get the EPS of the maximum value among x,
+	# and return its order of magnitude minus 2
+	max_presicion(x...) = abs(floor(Int, log10(eps(max(x...))))) - 2
+
+	# Number of digits to use when writing the table
+    const IN_PRES = max_presicion(i0[2], ρ0[2], it[2])
+    const OUT_PRES = IN_PRES - 2
 
     # Functions: index -> value
     fun_if(idx) = lin_idx_to_val(idx[1], N[1], i0[1], i0[2])
@@ -114,8 +120,12 @@ begin
 	const FUNC_TXT = "./gen_files/functions/functions_public.txt"
 
     # ODE solver configuration
-    const REL_TOL = 10.0^(-OUT_PRES - 2)
-    const KW_ARGS = (dense=false, force_dtmin=true, reltol=REL_TOL, maxiters=1e6)
+    const KW_ARGS = (
+		dense=false, 
+		force_dtmin=true, 
+		reltol=10.0^(-IN_PRES),
+		maxiters=1e6,
+	)
 end;
 
 # ╔═╡ 50fab19c-98d4-4a2f-b67e-347c8efdef19
@@ -135,11 +145,11 @@ function c_func(fun::Function, name::String)::String
     raw_str = head * match(r"(?<== )(.*?)(?=;\n\})", c_func).match * tail
     str_out = replace(
         raw_str,
-        "RHS1" => "idx",
-        "+ -" => "- ",
-        " * 1)" => ")",
-        "* 1 " => "",
-        "1.0 * " => "",
+		"+ -" => "- ",    # Delete trivial operation
+        " * 1)" => ")",   # Delete trivial operation
+        "* 1 " => "",     # Delete trivial operation
+        "1.0 * " => "",   # Delete trivial operation
+        "RHS1" => "idx",  # Variale name replacement
     )
 
     return str_out
@@ -153,8 +163,8 @@ open(FUNC_TXT, "w") do file
 	write(
 		file, 
 		"""
-		#define DEQU(a, b) (fabs(a - b) < 1.0e-$IN_PRES)
-		#define DNEQ(a, b) (fabs(a - b) >= 1.0e-$IN_PRES)
+		#define DEQU(a, b) (fabs(a - b) < 10.0e-$IN_PRES)
+		#define DNEQ(a, b) (fabs(a - b) >= 10.0e-$IN_PRES)
 	
 		#define N_COLS $N_COLS  // Number of columns in the table
 		#define N_ROWS $N_ROWS  // Number of rows in the table
@@ -169,7 +179,7 @@ open(FUNC_TXT, "w") do file
 		write(file, c_func(fun, name))
 	end
 
-	write(file, "/* Value to index functions */\n")
+	write(file, "\n/* Value to index functions */\n")
 
 	for (inv_fun, inv_name) in zip(inv_funcs, inv_names) 
 		write(file, c_func(inv_fun, inv_name))
@@ -182,8 +192,10 @@ open(FUNC_TXT, "w") do file
 		'[' => '{', ']' => '}', '\"' => "",
 	)
 	tail = """
+	
 	static double (*FUN[])(double *) = $names_str;
 	static double (*INV_FUN[])(double *) = $inv_names_str;
+
 	static const int NGRID[] =$N_str;
 	"""
 
@@ -209,17 +221,17 @@ function write_table(path::String, rho_pdf::Bool)::Int64
     ic[4] = 0.0 # z₀
     ic[5] = 0.0 # s₀
 
-    for idx[1] in 0:(N[1]-1)
+    for idx[1] in 0:(N[1] - 1)
 
         i₀ = funcs[1](idx)
         ic[1] = i₀
         ic[2] = 1 - i₀ # a₀
 
-        for idx[2] in 0:(N[2]-1)
+        for idx[2] in 0:(N[2] - 1)
 
             ρ₀ = funcs[2](idx)
 
-            for idx[3] in 0:(N[3]-1)
+            for idx[3] in 0:(N[3] - 1)
 
                 i_t = funcs[3](idx)
 
@@ -270,14 +282,14 @@ md"## `ccall` functions"
 begin
     function read_ftable(filename)
         return ccall(
-            (:read_ftable, "./c_functions/interpolation/libinterpolationpublic"),
+            (:read_ftable, "./c_functions/interpolation/libinterpolationpublic.dll"),
             Ptr{Cdouble}, (Cstring,), filename,
         )
     end
 
     function interpolate_C(table, ic)
         return ccall(
-            (:interpolate, "./c_functions/interpolation/libinterpolationpublic"),
+            (:interpolate, "./c_functions/interpolation/libinterpolationpublic.dll"),
             Cdouble, (Ptr{Cdouble}, Ref{Cdouble}), table, ic,
         )
     end
@@ -334,7 +346,10 @@ begin
         readdlm(TABLE_RHO, ' ', header=false),
         ["i0", "rho_0", "it", "s_f"],
     )
-    results = permutedims(reshape(data[:, "s_f"], (N...)), (3, 2, 1))
+    results = permutedims(
+		reshape(data[:, "s_f"], (reverse(N)...)), 
+		reverse(1:N_DIMS),
+	)
 
     # Create interpolation function with Interpolations.jl
     interp_julia = LinearInterpolation(
@@ -353,30 +368,26 @@ begin
     interp_C(init_cond...) = interpolate_C(table, init_cond)
 end;
 
-# ╔═╡ 9baf8c7d-1f83-48be-bd91-17dd2e07d6ba
-begin
-    c_julia_diff = 0.0
-    for i in 1:N_ERR
-        point = (err_i0[i], err_ρ0[i], err_it[i])
-        global c_julia_diff += abs(interp_C(point...) - interp_julia(point...))
-    end
-    @assert(c_julia_diff / N_ERR < 1.0^(-OUT_PRES))
-end
-
 # ╔═╡ 9988970a-d794-42ec-b151-27d46a75d0bd
 md"# Error estimation"
 
 # ╔═╡ f5e4b5b3-0c76-48ec-b6d4-b6df2b00c9a1
 begin
     c_err = Vector{Float64}(undef, N_ERR)
+	c_diff = Vector{Float64}(undef, N_ERR)
 
     for i in 1:N_ERR
         point = (err_i0[i], err_ρ0[i], err_it[i])
-        interp_val = round(interp_C(point...), digits=OUT_PRES)
-        exact_val = round(exact_ode(point...), digits=OUT_PRES)
-        c_err[i] = exact_val == 0.0 ? NaN : abs(exact_val - interp_val) / exact_val
-    end
+		
+        interp_c = interp_C(point...)
+		interp_j = interp_julia(point...)
+        exact = exact_ode(point...)
 
+		@inbounds c_diff[i] = abs(interp_c - interp_j)
+        @inbounds c_err[i] = exact == 0.0 ? NaN : abs(exact - interp_c) / exact
+    end
+	
+	@assert(maximum(c_diff) < 10.0^(-OUT_PRES))
     filter!(!isnan, c_err)
     mean(c_err) ± std(c_err)
 end
@@ -2481,7 +2492,6 @@ version = "3.5.0+0"
 # ╟─37def411-a69f-4510-b13d-050bedd53434
 # ╠═2f548e10-c380-4618-86b1-34405edf14fd
 # ╠═90f12838-b788-4d6b-a119-7c6c0ed22d24
-# ╠═9baf8c7d-1f83-48be-bd91-17dd2e07d6ba
 # ╟─9988970a-d794-42ec-b151-27d46a75d0bd
 # ╠═f5e4b5b3-0c76-48ec-b6d4-b6df2b00c9a1
 # ╟─00000000-0000-0000-0000-000000000001

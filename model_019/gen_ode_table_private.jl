@@ -59,7 +59,9 @@ begin
         xi_log = log10(xi)
         xf_log = log10(xf)
         val_log = ((xf_log - xi_log) / (n - 1.0)) * idx + xi_log
-        return 10^val_log
+		
+		# exp() is more efficient than pow()
+        return exp(log(10) * val_log) 
     end
     function log_val_to_idx(val, n, xi, xf)
         val_log = log10(val)
@@ -68,11 +70,7 @@ begin
         return (val_log - xi_log) * (n - 1.0) / (xf_log - xi_log)
     end
 
-	# Number of digits to use when writing the table
-    const IN_PRES = 12
-    const OUT_PRES = 8
-
-    const N = [30, 30, 30, 30]  # Number of point for each variable
+    const N = [30, 30, 50, 30]  # Number of point for each variable
     const N_DIMS = length(N)    # Number of dimensions of the problem
     const N_VERT = 2^N_DIMS     # Number of vertices of a n-rectangle = 2^N_DIMS
     const N_COLS = N_DIMS + 1   # Number of columns in the table
@@ -81,14 +79,22 @@ begin
 	# Extreme values for each variable
     i0 = [0.2, 1.0]
 	z0 = [model.Zeff, 0.2]
-    ρ0 = [0.007, 1500]
+    ρ0 = [0.007, 2500]
     it = [1e-5, 10e-5]
+
+	# Get the EPS of the maximum value among x,
+	# and return its order of magnitude minus 2
+	max_presicion(x...) = abs(floor(Int, log10(eps(max(x...))))) - 2
+
+	# Number of digits to use when writing the table
+    const IN_PRES = max_presicion(i0[2], z0[2], ρ0[2], it[2])
+    const OUT_PRES = IN_PRES - 2
 
 	# Variables iterators
     i0_range = range(i0[1], i0[2], N[1])
 	z0_range = 10 .^ range(log10(z0[1]), log10(z0[2]), N[2])
-	ρ0_range = 10 .^ range(log10(ρ0[1]), log10(ρ0[2]), N[2])
-    it_range = range(it[1], it[2], N[3])
+	ρ0_range = 10 .^ range(log10(ρ0[1]), log10(ρ0[2]), N[3])
+    it_range = range(it[1], it[2], N[4])
 
 	# Functions: index -> value
 	fun_if(idx) = lin_idx_to_val(idx[1], N[1], i0[1], i0[2])
@@ -106,7 +112,7 @@ begin
 	inv_funcs = [inv_fun_if, inv_fun_zf, inv_fun_rh, inv_fun_it]
 	inv_names = ["inv_fun_if", "inv_fun_zf", "inv_fun_rh", "inv_fun_it"]
 
-	  # Number of random points to compute the mean global error
+	# Number of random points to compute the mean global error
     const N_ERR = 2000
     errors = Vector{Float64}(undef, N_ERR)
     err_i0 = round.(rand(N_ERR) .* (i0[2] - i0[1]) .+ i0[1], digits=IN_PRES)
@@ -119,9 +125,13 @@ begin
     const TABLE_RHO = "./gen_files/ode_tables/ode_table_rho_pdf_private.txt"
 	const FUNC_TXT = "./gen_files/functions/functions_private.txt"
 
-    # ODE solver configuration
-    const REL_TOL = 10.0^(-OUT_PRES - 2)
-    const KW_ARGS = (dense=false, force_dtmin=true, reltol=REL_TOL, maxiters=1e6)
+        # ODE solver configuration
+    const KW_ARGS = (
+		dense=false, 
+		force_dtmin=true, 
+		reltol=10.0^(-IN_PRES),
+		maxiters=1e6,
+	)
 end;
 
 # ╔═╡ 50fab19c-98d4-4a2f-b67e-347c8efdef19
@@ -141,11 +151,11 @@ function c_func(fun::Function, name::String)::String
     raw_str = head * match(r"(?<== )(.*?)(?=;\n\})", c_func).match * tail
     str_out = replace(
         raw_str,
-        "RHS1" => "idx",
-        "+ -" => "- ",
-        " * 1)" => ")",
-        "* 1 " => "",
-        "1.0 * " => "",
+        "+ -" => "- ",    # Delete trivial operation
+        " * 1)" => ")",   # Delete trivial operation
+        "* 1 " => "",     # Delete trivial operation
+        "1.0 * " => "",   # Delete trivial operation
+        "RHS1" => "idx",  # Variale name replacement
     )
 
     return str_out
@@ -159,8 +169,8 @@ open(FUNC_TXT, "w") do file
 	write(
 		file, 
 		"""
-		#define DEQU(a, b) (fabs(a - b) < 1.0e-$IN_PRES)
-		#define DNEQ(a, b) (fabs(a - b) >= 1.0e-$IN_PRES)
+		#define DEQU(a, b) (fabs(a - b) < 10.0e-$IN_PRES)
+		#define DNEQ(a, b) (fabs(a - b) >= 10.0e-$IN_PRES)
 	
 		#define N_COLS $N_COLS  // Number of columns in the table
 		#define N_ROWS $N_ROWS  // Number of rows in the table
@@ -175,7 +185,7 @@ open(FUNC_TXT, "w") do file
 		write(file, c_func(fun, name))
 	end
 
-	write(file, "/* Value to index functions */\n")
+	write(file, "\n/* Value to index functions */\n")
 
 	for (inv_fun, inv_name) in zip(inv_funcs, inv_names) 
 		write(file, c_func(inv_fun, inv_name))
@@ -188,8 +198,10 @@ open(FUNC_TXT, "w") do file
 		'[' => '{', ']' => '}', '\"' => "",
 	)
 	tail = """
+	
 	static double (*FUN[])(double *) = $names_str;
 	static double (*INV_FUN[])(double *) = $inv_names_str;
+
 	static const int NGRID[] =$N_str;
 	"""
 
@@ -344,14 +356,14 @@ begin
         readdlm(TABLE_RHO, ' ', header=false),
         ["i0", "z0", "rho_0", "it", "s_f"],
     )
-    results = permutedims(reshape(data[:, "s_f"], (N...)), (4, 3, 2, 1))
+    results = permutedims(reshape(data[:, "s_f"], (reverse(N)...)), reverse(1:N_DIMS))
 
     # Create interpolation function with Interpolations.jl
     interp_julia = LinearInterpolation(
-        (i0_range, z0_range, ρ0_range, it_range),
+	    (i0_range, z0_range, ρ0_range, it_range),
         results,
-        extrapolation_bc=Flat(),
-    )
+		extrapolation_bc=Flat(),
+	)
 end;
 
 # ╔═╡ 0e4a7570-b97d-4ff3-9de6-c52ac540c2e1
@@ -363,30 +375,26 @@ begin
     interp_C(init_cond...) = interpolate_C(table, init_cond)
 end;
 
-# ╔═╡ 72f97556-f105-40e7-9875-278f958abbb5
-begin
-    c_julia_diff = 0.0
-    for i in 1:N_ERR
-        point = (err_i0[i], err_z0[i], err_ρ0[i], err_it[i])
-        global c_julia_diff += abs(interp_C(point...) - interp_julia(point...))
-    end
-    @assert(c_julia_diff / N_ERR < 1.0^(-OUT_PRES))
-end
-
 # ╔═╡ 9988970a-d794-42ec-b151-27d46a75d0bd
 md"# Error estimation"
 
 # ╔═╡ ce3da1f0-e104-4393-83b5-c63f2cb710c0
 begin
     c_err = Vector{Float64}(undef, N_ERR)
+	c_diff = Vector{Float64}(undef, N_ERR)
 
     for i in 1:N_ERR
         point = (err_i0[i], err_z0[i], err_ρ0[i], err_it[i])
-        interp_val = round(interp_C(point...), digits=OUT_PRES)
-        exact_val = round(exact_ode(point...), digits=OUT_PRES)
-        c_err[i] = exact_val == 0.0 ? NaN : abs(exact_val - interp_val) / exact_val
-    end
+		
+        interp_c = interp_C(point...)
+		interp_j = interp_julia(point...)
+        exact = exact_ode(point...)
 
+		@inbounds c_diff[i] = abs(interp_c - interp_j)
+        @inbounds c_err[i] = exact == 0.0 ? NaN : abs(exact - interp_c) / exact
+    end
+	
+	@assert(maximum(c_diff) < 10.0^(-OUT_PRES))
     filter!(!isnan, c_err)
     mean(c_err) ± std(c_err)
 end
@@ -2491,7 +2499,6 @@ version = "3.5.0+0"
 # ╟─37def411-a69f-4510-b13d-050bedd53434
 # ╠═646f2a4d-df7d-4a11-ae48-adf704392f98
 # ╠═0e4a7570-b97d-4ff3-9de6-c52ac540c2e1
-# ╠═72f97556-f105-40e7-9875-278f958abbb5
 # ╟─9988970a-d794-42ec-b151-27d46a75d0bd
 # ╠═ce3da1f0-e104-4393-83b5-c63f2cb710c0
 # ╟─00000000-0000-0000-0000-000000000001
